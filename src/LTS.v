@@ -21,12 +21,14 @@ Definition prefixing_lts {S A} (a:S) (X:LTS S A) : LTS S (option A) :=
       fun '(x',a') =>
         match x with
         | None => maybe False (fun x' => x'=X.(start) /\ a'=a) x'
-        | Some x => maybe False (fun x' => X.(t) x (x',a)) x' end in
+        | Some x => maybe False (fun x' => X.(t) x (x',a')) x' end in
   mkLTS _ _ t None.
+
+Definition Trans {S A} (X:LTS S A) (p p':A) (a:S) : Prop := In _ (X.(t) p) (p',a).
 
 Definition Simulation {S A B} (X:LTS S A) (Y:LTS S B) (R :A -> B -> Prop) :=
   forall p q, R p q ->
-  forall p' a, In _ (X.(t) p) (p',a) -> exists q', In _ (Y.(t) q) (q',a) /\ R p' q'.
+  forall p' a, Trans X p p' a -> exists q', Trans Y q q' a /\ R p' q'.
 
 Definition Bisimulation {S A B} (X:LTS S A) (Y:LTS S B) (R:A->B->Prop) : Prop :=
   Simulation X Y R /\ Simulation Y X (fun x y => R y x).
