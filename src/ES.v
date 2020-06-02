@@ -137,29 +137,241 @@ Definition lts_of_es {s A} (E:ES s A) : LTS s (sig (ctype E)) :=
         exists e, (x'=Add _ x e /\ ctype E (Add _ x e) /\ not (In _ x e) /\ E.(lbl) e = a) in
   mkLTS _ (sig (ctype E)) t (empty _).
 
-Lemma add_none {S A} (E: ES S A) a (x : option (sig (ctype E))) : {x : Ensemble (option A) | ctype (prefixing_es a E) x}.
-  split with (x:= maybe (Singleton (option A) None) (fun x => maybe True (proj1_sig x)) x).
+Lemma f {S A B} (E:ES S A) (F:ES S B) (P : {x : Ensemble A | ctype E x} * {x : Ensemble B | ctype F x}) :
+  {x:Ensemble (A + B) | ctype (par_es E F) x}.
+Proof.
+  split with (x:=either (fun x => In _ (proj1_sig (fst P)) x) (fun y => In _ (proj1_sig (snd P)) y)).
+  destruct P as (X,Y).
+  destruct X as (X,(dcx,cfx)).
+  destruct Y as (Y,(dcy,cfy)).
+  unfold ctype, downclosed, conflict_free; split.
+  - unfold In; intros x ix y c.
+    unfold par_es,cmp,par_rel in c.
+    destruct y,x; simpl either in *; firstorder.
+  - intros x y ix iy.
+    unfold cfl, par_es,par_rel.
+    destruct x,y; firstorder.
+Defined.
+
+Lemma unf {S A B} (E:ES S A) (F:ES S B) (X:{x:Ensemble (A + B) | ctype (par_es E F) x}):
+  {x : Ensemble A | ctype E x}*{x : Ensemble B | ctype F x}.
+Proof.
   split.
-  - unfold downclosed,In; intros y hy z hz.
-    destruct x; unfold proj1_sig,maybe,cmp,prefixing_es,prefix_opt,maybe in *.
-    + destruct s as (s,hs); destruct y,z; simpl; firstorder.
-    + destruct y,z; simpl; firstorder.
-      apply Singleton_inv in hy; congruence.
-  - unfold conflict_free, not, In, lift_rel,maybe,proj1_sig in *; intros y z iy iz cyz.
-    destruct x; simpl in *.
-    + destruct s as (s,hs); destruct y,z; firstorder.
-    + destruct y,z; firstorder.
-      apply Singleton_inv in iy; congruence.
+  - split with (x:=fun x => In _ (proj1_sig X) (inl x)).
+    destruct X as (X,HX); simpl in *.
+    firstorder.
+  - split with (x:=fun x => In _ (proj1_sig X) (inr x)).
+    destruct X as (X,HX); simpl in *.
+    firstorder.
 Defined.
 
-Lemma remove_none {S A} (E: ES S A) a (X : sig (ctype (prefixing_es a E))) : sig (ctype E).
-Proof.
-  split with (x:=(fun x => proj1_sig X (Some x))).
-  destruct X as (X,HX); simpl. firstorder.
-Defined.
+Require Coq.Logic.ProofIrrelevance. (* Important Axiom *)
 
-Theorem prefixing_compat {S A} (a:S) (E:ES S A) :
-  Bisimilar (lts_of_es (prefixing_es a E)) (prefixing_lts a (lts_of_es E)).
+Lemma specif_eq {A} (P:A -> Prop) (x y : A) (px: P x) (py: P y) : x = y -> exist P x px = exist P y py.
 Proof.
-  exists (fun x y => Same_set _ (proj1_sig x) (proj1_sig (add_none E a y))).
-Admitted.
+  intros exy.
+  apply eq_sig_hprop.
+  - intros z; apply Coq.Logic.ProofIrrelevance.proof_irrelevance.
+  - easy.
+Qed.
+
+Lemma funf {S A B} (E:ES S A) (F:ES S B) X : f E F (unf E F X) = X.
+  unfold f,unf.
+  destruct X as (X,HX).
+  apply specif_eq; simpl.
+  apply Extensionality_Ensembles.
+  unfold Same_set,Included,In; split; destruct x; intuition.
+Qed.
+
+Lemma unff {S A B} (E:ES S A) (F:ES S B) X : unf E F (f E F X) = X.
+  destruct X as ((X1,HX1),(X2,HX2)).
+  unfold f,unf.
+  apply f_equal2;
+    apply specif_eq; simpl;
+    apply Extensionality_Ensembles;
+    unfold Same_set,Included,In; split; intuition.
+Qed.
+
+Lemma par_ctype {S A B} (E:ES S A) (F:ES S B) X :
+  ctype (par_es E F) X -> ctype E (fun x => X (inl x)) /\ ctype F (fun x => X (inr x)).
+Proof. firstorder. Qed.
+
+Lemma add_either_l {A B} X Y e :
+  Add (A + B) (either (fun x : A => In A X x) (fun y : B => In B Y y)) (inl e) =
+  either (Add _ X e) (fun y : B => In B Y y).
+Proof.
+  apply Extensionality_Ensembles; split; intros x ix.
+  - apply Add_inv in ix.
+    destruct ix; unfold In,either in *; destruct x; try congruence; firstorder.
+    * now apply Union_introl.
+    * injection H; intros h; rewrite h; apply Add_intro2.
+  - destruct x; intuition.
+    unfold In,either in ix.
+    apply Add_inv in ix; destruct ix; intuition.
+    rewrite H; apply Union_intror; intuition.
+Qed.
+
+Lemma ctype_either_l {S A B} (E:ES S A) (F:ES S B) X Y e:
+  ctype E (Add A X e) -> ctype F Y ->
+  ctype (par_es E F)
+        (Add (A + B) (either (fun x : A => In A X x) (fun y : B => In B Y y)) (inl e)).
+Proof.
+  rewrite add_either_l; intros ce cf.
+  split.
+  - intros x hx y cxy; destruct x,y; firstorder.
+  - intros x y cxy; destruct x,y; firstorder.
+Qed.
+
+(* TODO SAME PROOF THAN add_either_l *)
+Lemma add_either_r {A B} X Y e :
+  Add (A + B) (either (fun x : A => In A X x) (fun y : B => In B Y y)) (inr e) =
+  either (fun x : A => In A X x) (Add _ Y e).
+Proof.
+  apply Extensionality_Ensembles; split; intros x ix.
+  - apply Add_inv in ix.
+    destruct ix; unfold In,either in *; destruct x; try congruence; firstorder.
+    + now apply Union_introl.
+    + injection H; intros h; rewrite h; apply Add_intro2.
+  - destruct x; intuition.
+    unfold In,either in ix.
+    apply Add_inv in ix; destruct ix; intuition.
+    rewrite H; apply Union_intror; intuition.
+Qed.
+
+(* TODO SAME PROOF THAN ctype_either_r *)
+Lemma ctype_either_r {S A B} (E:ES S A) (F:ES S B) X Y e:
+  ctype E X -> ctype F (Add B Y e) ->
+  ctype (par_es E F)
+        (Add (A + B) (either (fun x : A => In A X x) (fun y : B => In B Y y)) (inr e)).
+Proof.
+  rewrite add_either_r; intros ce cf.
+  split.
+  - intros x hx y cxy; destruct x,y; firstorder.
+  - intros x y cxy; destruct x,y; firstorder.
+Qed.
+
+Lemma add_l {A B} X a:
+  (fun x => Add (A + B) X (inl a) (inl x)) = Add A (fun x : A => X (inl x)) a.
+Proof.
+  apply Extensionality_Ensembles; split; intros x ix.
+  - apply Add_inv in ix.
+    destruct ix; intuition.
+    injection H; intros h; rewrite h; apply Add_intro2.
+  - apply Add_inv in ix.
+    destruct ix.
+    + now apply Add_intro1.
+    + rewrite H; now apply Add_intro2.
+Qed.
+
+(* TODO SAME PROOF THAN add_l *)
+Lemma add_r {A B} X a:
+  (fun x => Add (A + B) X (inr a) (inr x)) = Add B (fun x : B => X (inr x)) a.
+Proof.
+  apply Extensionality_Ensembles; split; intros x ix.
+  - apply Add_inv in ix.
+    destruct ix; intuition.
+    injection H; intros h; rewrite h; apply Add_intro2.
+  - apply Add_inv in ix.
+    destruct ix.
+    + now apply Add_intro1.
+    + rewrite H; now apply Add_intro2.
+Qed.
+
+
+Theorem par_bisim {S A B} (E:ES S A) (F:ES S B) :
+  Bisimilar (par_lts (lts_of_es E) (lts_of_es F)) (lts_of_es (par_es E F)).
+Proof.
+  exists (fun x y => y=f E F x).
+  split; unfold Simulation.
+  - intros p q rpq p' a tpp'.
+    destruct p as ((p1,Hp1),(p2,Hp2)).
+    exists (f E F p'); intuition.
+    destruct p' as (p'1,p'2).
+    unfold Trans,In in *.
+    unfold par_lts,lts_of_es,In,t in tpp'.
+    unfold lts_of_es,t; simpl.
+    rewrite rpq in *.
+    destruct tpp'; destruct H as (H1,H2).
+    + destruct H2 as (e,He).
+      exists (inl e); simpl; intuition.
+      * apply Extension in H; destruct H as (Hr,Hl).
+        unfold f; simpl.
+        apply Extensionality_Ensembles; unfold Same_set,Included; split; intros x ix; destruct x.
+        -- apply Hr in ix.
+           destruct ix; intuition.
+           apply Singleton_inv in H; rewrite H; intuition.
+        -- rewrite <- H1 in ix. intuition.
+        -- apply Hl.
+           apply Add_inv in ix.
+           destruct ix; intuition.
+           injection H; intros re; rewrite re; intuition.
+        -- apply Add_inv in ix.
+           rewrite <- H1; intuition congruence.
+      * now apply ctype_either_l.
+    + destruct H2 as (e,He).
+      exists (inr e); simpl; intuition.
+      * apply Extension in H; destruct H as (Hr,Hl).
+        unfold f; simpl.
+        apply Extensionality_Ensembles; unfold Same_set,Included; split; intros x ix; destruct x.
+        -- rewrite <- H1 in ix. intuition.
+        -- apply Hr in ix.
+           destruct ix; intuition.
+           apply Singleton_inv in H; rewrite H; intuition.
+        -- apply Add_inv in ix; rewrite <- H1; intuition congruence.
+        -- apply Hl.
+           apply Add_inv in ix.
+           destruct ix; intuition.
+           injection H; intros re; rewrite re; intuition.
+      * now apply ctype_either_r.
+  - intros q p rqp q' a tqq'.
+    destruct p as (p1,p2).
+    exists (unf E F q').
+    rewrite funf.
+    destruct (unf E F q') as (p'1,p'2) eqn:eqp'.
+    unfold Trans,In in *.
+    unfold lts_of_es,t in tqq'.
+    destruct tqq' as (e,He).
+    unfold t,par_lts,lts_of_es.
+    split; intuition.
+    (* Rewrite for specif *)
+    destruct p2 as (p2,Hp2).
+    destruct p'2 as (p'2,Hp'2).
+    unfold unf in eqp'; injection eqp'; intros eqp'1 eqp'2.
+    destruct eqp'1, eqp'2, eqp'.
+    apply (f_equal (unf E F)) in rqp.
+    rewrite unff in rqp; injection rqp; intros eqp'1 eqp'2.
+    destruct rqp, eqp'1, eqp'2.
+    simpl.
+    apply Extension in H.
+    destruct H as (Hl,Hr).
+    destruct e; [left | right]; split; simpl.
+    1,3:
+      apply specif_eq, Extensionality_Ensembles;
+      split; intros x ix;
+        try apply Hr; intuition;
+          try apply Hl,Add_inv in ix; destruct ix; try congruence; intuition.
+    + unfold In,t.
+      exists a0; intuition; simpl.
+      * apply Extensionality_Ensembles; split; intros x ix.
+        -- apply Hl,Add_inv in ix.
+           destruct ix; intuition.
+           injection H; intros h; rewrite <- h.
+           intuition.
+        -- apply Hr.
+           apply Add_inv in ix.
+           destruct ix; try rewrite H; intuition.
+      * destruct (par_ctype E F _ H1).
+        now rewrite <- add_l.
+    + unfold In,t.
+      exists b; intuition; simpl.
+      * apply Extensionality_Ensembles; split; intros x ix.
+        -- apply Hl,Add_inv in ix.
+           destruct ix; intuition.
+           injection H; intros h; rewrite <- h.
+           intuition.
+        -- apply Hr.
+           apply Add_inv in ix.
+           destruct ix; try rewrite H; intuition.
+      * destruct (par_ctype E F _ H1).
+        now rewrite <- add_r.
+Qed.
