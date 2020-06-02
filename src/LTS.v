@@ -31,7 +31,7 @@ Definition Simulation {S A B} (X:LTS S A) (Y:LTS S B) (R :A -> B -> Prop) :=
   forall p' a, Trans X p p' a -> exists q', Trans Y q q' a /\ R p' q'.
 
 Definition Bisimulation {S A B} (X:LTS S A) (Y:LTS S B) (R:A->B->Prop) : Prop :=
-  Simulation X Y R /\ Simulation Y X (fun x y => R y x).
+  Simulation X Y R /\ Simulation Y X (fun x y => R y x) /\ R X.(start) Y.(start).
 
 Definition Bisimilar {S A B} (X:LTS S A) (Y:LTS S B) : Prop :=
   exists R, Bisimulation X Y R.

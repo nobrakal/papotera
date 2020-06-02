@@ -261,7 +261,7 @@ Theorem par_bisim {S A B} (E:ES S A) (F:ES S B) :
   Bisimilar (par_lts (lts_of_es E) (lts_of_es F)) (lts_of_es (par_es E F)).
 Proof.
   exists (fun x y => y=f E F x).
-  split.
+  split; try split.
   - intros p q rpq p' a tpp'.
     exists (f E F p'); intuition.
     destruct p as ((p1,Hp1),(p2,Hp2)), p' as (p'1,p'2).
@@ -336,4 +336,7 @@ Proof.
         -- rewrite H; intuition.
       * destruct (par_ctype E F _ H1).
         now rewrite <- add_r.
+  - unfold start,lts_of_es,par_es,par_lts,empty,f.
+    apply specif_eq; simpl.
+    apply Extensionality_Ensembles; split; intros x ix; destruct x; apply Noone_in_empty in ix; intuition.
 Qed.
