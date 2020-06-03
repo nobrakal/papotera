@@ -232,85 +232,99 @@ Proof.
   1,2:rewrite H; now apply Add_intro2.
 Qed.
 
+Lemma par_sim1 {S A B} (E:ES S A) (F:ES S B) :
+  Simulation (par_lts (lts_of_es E) (lts_of_es F)) (lts_of_es (par_es E F))
+             (fun x y => y=f E F x).
+Proof.
+  intros p q rpq p' a tpp'.
+  exists (f E F p'); intuition.
+  destruct p as ((p1,Hp1),(p2,Hp2)), p' as (p'1,p'2).
+  simpl.
+  rewrite rpq in *.
+  destruct tpp'; destruct H as (H1,H2).
+  - destruct H2 as (e,He).
+    exists (inl e); simpl; intuition.
+    + apply Extension in H; destruct H as (Hr,Hl); simpl.
+      apply Extensionality_Ensembles; split; intros x ix; destruct x.
+      * apply Hr in ix.
+        destruct ix; intuition.
+        apply Singleton_inv in H; rewrite H; intuition.
+      * rewrite <- H1 in ix. intuition.
+      * apply Hl.
+        apply Add_inv in ix.
+        destruct ix; intuition.
+        injection H as re; rewrite re; intuition.
+      * apply Add_inv in ix.
+        rewrite <- H1; intuition congruence.
+    + now apply ctype_either_l.
+  - destruct H2 as (e,He).
+    exists (inr e); simpl; intuition.
+    + apply Extension in H; destruct H as (Hr,Hl); simpl.
+      apply Extensionality_Ensembles; split; intros x ix; destruct x.
+      * rewrite <- H1 in ix. intuition.
+      * apply Hr in ix.
+        destruct ix; intuition.
+        apply Singleton_inv in H; rewrite H; intuition.
+      * apply Add_inv in ix; rewrite <- H1; intuition congruence.
+      * apply Hl.
+        apply Add_inv in ix.
+        destruct ix; intuition.
+        injection H as re; rewrite re; intuition.
+    + now apply ctype_either_r.
+Qed.
+
+Lemma par_sim2 {S A B} (E:ES S A) (F:ES S B) :
+  Simulation (lts_of_es (par_es E F)) (par_lts (lts_of_es E) (lts_of_es F))
+             (fun y x => y=f E F x).
+Proof.
+  intros q p rqp q' a tqq'.
+  destruct p as (p1,p2).
+  exists (unf E F q').
+  rewrite funf.
+  destruct (unf E F q') as (p'1,p'2) eqn:eqp'.
+  destruct tqq' as (e,He).
+  split; intuition.
+  (* Rewrite for specif *)
+  destruct p2 as (p2,Hp2), p'2 as (p'2,Hp'2).
+  unfold unf in eqp'; injection eqp' as eqp'1 eqp'2.
+  destruct eqp'1, eqp'2.
+  apply (f_equal (unf E F)) in rqp.
+  rewrite unff in rqp; injection rqp as eqp'1 eqp'2.
+  destruct eqp'1, eqp'2.
+  simpl.
+  apply Extension in H.
+  destruct H as (Hl,Hr).
+  destruct e; [left | right]; split; simpl.
+  1,3:
+    apply specif_eq, Extensionality_Ensembles;
+    split; intros x ix;
+      try apply Hr; intuition;
+        try apply Hl,Add_inv in ix; destruct ix; try congruence; intuition.
+  - unfold In,t.
+    exists a0; intuition; simpl.
+    + apply Extensionality_Ensembles; split; intros x ix; [apply Hl in ix| apply Hr];
+        apply Add_inv in ix; destruct ix; intuition.
+      * injection H as h; rewrite <- h; intuition.
+      * rewrite H; intuition.
+    + destruct (par_ctype E F _ H1).
+      now rewrite <- (proj1 (add_a _)).
+  - unfold In,t.
+    exists b; intuition; simpl.
+    + apply Extensionality_Ensembles; split; intros x ix; [apply Hl in ix| apply Hr];
+        apply Add_inv in ix; destruct ix; intuition.
+      * injection H as h; rewrite <- h; intuition.
+      * rewrite H; intuition.
+    + destruct (par_ctype E F _ H1).
+      now rewrite <- (proj2 (add_a _)).
+Qed.
+
 Theorem par_bisim {S A B} (E:ES S A) (F:ES S B) :
   Bisimilar (par_lts (lts_of_es E) (lts_of_es F)) (lts_of_es (par_es E F)).
 Proof.
   exists (fun x y => y=f E F x).
   split; try split.
-  - intros p q rpq p' a tpp'.
-    exists (f E F p'); intuition.
-    destruct p as ((p1,Hp1),(p2,Hp2)), p' as (p'1,p'2).
-    simpl.
-    rewrite rpq in *.
-    destruct tpp'; destruct H as (H1,H2).
-    + destruct H2 as (e,He).
-      exists (inl e); simpl; intuition.
-      * apply Extension in H; destruct H as (Hr,Hl); simpl.
-        apply Extensionality_Ensembles; split; intros x ix; destruct x.
-        -- apply Hr in ix.
-           destruct ix; intuition.
-           apply Singleton_inv in H; rewrite H; intuition.
-        -- rewrite <- H1 in ix. intuition.
-        -- apply Hl.
-           apply Add_inv in ix.
-           destruct ix; intuition.
-           injection H as re; rewrite re; intuition.
-        -- apply Add_inv in ix.
-           rewrite <- H1; intuition congruence.
-      * now apply ctype_either_l.
-    + destruct H2 as (e,He).
-      exists (inr e); simpl; intuition.
-      * apply Extension in H; destruct H as (Hr,Hl); simpl.
-        apply Extensionality_Ensembles; split; intros x ix; destruct x.
-        -- rewrite <- H1 in ix. intuition.
-        -- apply Hr in ix.
-           destruct ix; intuition.
-           apply Singleton_inv in H; rewrite H; intuition.
-        -- apply Add_inv in ix; rewrite <- H1; intuition congruence.
-        -- apply Hl.
-           apply Add_inv in ix.
-           destruct ix; intuition.
-           injection H as re; rewrite re; intuition.
-      * now apply ctype_either_r.
-  - intros q p rqp q' a tqq'.
-    destruct p as (p1,p2).
-    exists (unf E F q').
-    rewrite funf.
-    destruct (unf E F q') as (p'1,p'2) eqn:eqp'.
-    destruct tqq' as (e,He).
-    split; intuition.
-    (* Rewrite for specif *)
-    destruct p2 as (p2,Hp2), p'2 as (p'2,Hp'2).
-    unfold unf in eqp'; injection eqp' as eqp'1 eqp'2.
-    destruct eqp'1, eqp'2.
-    apply (f_equal (unf E F)) in rqp.
-    rewrite unff in rqp; injection rqp as eqp'1 eqp'2.
-    destruct eqp'1, eqp'2.
-    simpl.
-    apply Extension in H.
-    destruct H as (Hl,Hr).
-    destruct e; [left | right]; split; simpl.
-    1,3:
-      apply specif_eq, Extensionality_Ensembles;
-      split; intros x ix;
-        try apply Hr; intuition;
-          try apply Hl,Add_inv in ix; destruct ix; try congruence; intuition.
-    + unfold In,t.
-      exists a0; intuition; simpl.
-      * apply Extensionality_Ensembles; split; intros x ix; [apply Hl in ix| apply Hr];
-          apply Add_inv in ix; destruct ix; intuition.
-        -- injection H as h; rewrite <- h; intuition.
-        -- rewrite H; intuition.
-      * destruct (par_ctype E F _ H1).
-        now rewrite <- (proj1 (add_a _)).
-    + unfold In,t.
-      exists b; intuition; simpl.
-      * apply Extensionality_Ensembles; split; intros x ix; [apply Hl in ix| apply Hr];
-          apply Add_inv in ix; destruct ix; intuition.
-        -- injection H as h; rewrite <- h; intuition.
-        -- rewrite H; intuition.
-      * destruct (par_ctype E F _ H1).
-         now rewrite <- (proj2 (add_a _)).
+  - apply par_sim1.
+  - apply par_sim2.
   - unfold start,lts_of_es,par_es,par_lts,empty,f.
     apply specif_eq; simpl.
     apply Extensionality_Ensembles; split; intros x ix; destruct x; apply Noone_in_empty in ix; intuition.
