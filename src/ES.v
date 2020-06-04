@@ -1,5 +1,6 @@
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Sets.Constructive_sets.
+Require Coq.Vectors.Vector.
 
 Require Import Causality.Utils.
 
@@ -61,6 +62,36 @@ Definition par_es S A B (E:ES S A) (F:ES S B) :=
   let inherit := par_inherit  E.(inherit)  F.(inherit) in
   let lbl := either E.(lbl) F.(lbl) in
   mkES cmp_order cfl_conflict inherit lbl.
+
+(* Arbitrary sum *)
+Definition ASum (A:Type) : nat -> Type :=
+  fix vec n :=
+    match n return Type with
+    | O   => False
+    | S n => sum A (vec n)
+    end.
+
+Definition empty_rel A : A -> A -> Prop := fun _ _ => False.
+
+Lemma empty_order : order _ (@empty_rel False).
+Proof. split; intuition; intros x; intuition. Qed.
+
+Lemma empty_conflict : conflict _ (@empty_rel False).
+Proof. split; intuition; intros x hx; intuition. Qed.
+
+Lemma empty_inherit : conflict_inherit (@empty_rel False) (@empty_rel False).
+Proof. firstorder. Qed.
+
+Lemma false_all S : False -> S . Proof. intuition. Qed.
+
+Definition empty_es S : ES S False :=
+  mkES empty_order empty_conflict empty_inherit (@false_all S).
+
+Fixpoint par_multiple_es S A n (xs:Vector.t (ES S A) n) : ES S (ASum A n) :=
+  match xs in Vector.t _ n return ES S (ASum A n) with
+  | Vector.nil _ => empty_es _
+  | Vector.cons _ x n xs =>
+    par_es x (par_multiple_es xs) end.
 
 Definition lift_rel A (R:relation A) : relation (option A) :=
   maybe (fun _ => False) (fun x => maybe False (R x)).
@@ -250,7 +281,7 @@ Proof.
       now destruct (par_ctype H1).
 Qed.
 
-Theorem par_bisim {S A B} (E:ES S A) (F:ES S B) :
+Theorem par_bisim S A B (E:ES S A) (F:ES S B) :
   Bisimilar (par_lts (lts_of_es E) (lts_of_es F)) (lts_of_es (par_es E F)).
 Proof.
   exists (fun x y => y=union_ens x).
