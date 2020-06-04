@@ -93,7 +93,7 @@ Proof.
 Qed.
 
 (* Prefixing for ES *)
-Definition prefixing_es {S A} (a:S) (E:ES S A) : ES S (option A) :=
+Definition prefixing_es S A (a:S) (E:ES S A) : ES S (option A) :=
   let cmp := prefix_opt E.(cmp) in
   let cmp_order := prefix_opt_order E.(cmp_ord) in
   let cfl := lift_rel E.(cfl) in
@@ -182,7 +182,7 @@ Proof. firstorder. Qed.
 Lemma ctype_either_l S A B (E:ES S A) (F:ES S B) X Y e:
   ctype E (Add A X e) -> ctype F Y ->
   ctype (par_es E F)
-        (Add (A + B) (either (In A X) (In B Y)) (inl e)).
+        (Add (A + B) (disjoint_union X Y) (inl e)).
 Proof.
   destruct (add_either X Y) as (HL,HR).
   rewrite HL; intros ce cf.
@@ -192,7 +192,7 @@ Qed.
 Lemma ctype_either_r S A B (E:ES S A) (F:ES S B) X Y e:
   ctype E X -> ctype F (Add B Y e) ->
   ctype (par_es E F)
-        (Add (A + B) (either (In A X) (In B Y)) (inr e)).
+        (Add (A + B) (disjoint_union X Y) (inr e)).
 Proof.
   destruct (add_either X Y) as (HL,HR).
   rewrite HR; intros ce cf.

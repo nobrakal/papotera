@@ -54,13 +54,15 @@ Proof.
   - now apply Union_introl.
 Qed.
 
+Definition disjoint_union A B X Y := either (In A X) (In B Y).
+
 Lemma add_either A B X Y :
   (forall e,
-      Add (A + B) (either (In A X) (In B Y)) (inl e) =
-      either (Add _ X e) (In B Y)) /\
+      Add (A + B) (disjoint_union X Y) (inl e) =
+      disjoint_union (Add _ X e) Y) /\
   (forall e,
-      Add (A + B) (either (fun x : A => In A X x) (fun y : B => In B Y y)) (inr e) =
-      either (fun x : A => In A X x) (Add _ Y e)) .
+      Add (A + B) (disjoint_union X Y) (inr e) =
+      disjoint_union X (Add _ Y e)).
 Proof.
   split; intros e;
     apply Extensionality_Ensembles;
