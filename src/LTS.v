@@ -1,4 +1,5 @@
 Require Import Coq.Sets.Constructive_sets.
+Require Coq.Lists.List.
 
 Require Import Causality.Utils.
 
@@ -14,6 +15,14 @@ Definition par_lts {s x y} (X:LTS s x) (Y:LTS s y) :=
       (fun '((x',y'),a) =>
          (y=y' /\ In _ (X.(t) x) (x',a)) \/ (x=x' /\ In _ (Y.(t) y) (y',a))) in
   let start := (X.(start), Y.(start)) in
+  mkLTS _ _ t start.
+
+Definition disj : list Prop -> Prop := List.fold_right or False.
+
+Definition par_lts_multiple {s x} (XS: list (LTS s x)) : LTS s (list x) :=
+  let t x :=
+      (fun '(x',a) => True ) in
+  let start := List.map (fun X => X.(start)) XS in
   mkLTS _ _ t start.
 
 Definition prefixing_lts {S A} (a:S) (X:LTS S A) : LTS S (option A) :=
