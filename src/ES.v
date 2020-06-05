@@ -297,25 +297,26 @@ End ParBisim.
 
 Section PrefixingBisim.
 
-  Definition f S A (E:ES S A) (a:S)  (x:{x : Ensemble A | ctype E x}) : {x : Ensemble (option A) | ctype (prefixing_es a E) x}.
+  Definition add_none_sig S A (E:ES S A) (a:S)  (x:{x : Ensemble A | ctype E x}) : {x : Ensemble (option A) | ctype (prefixing_es a E) x}.
     split with (x:=add_none (proj1_sig x)).
     split; [intros y iy z | intros y z iy];
       destruct x,y,z; unfold In,maybe in *; simpl in *; firstorder.
   Defined.
 
-  Definition unf S A (E:ES S A) (a:S) (X:{x : Ensemble (option A) | ctype (prefixing_es a E) x}) : {x : Ensemble A | ctype E x}.
+  Definition remove_none_sig S A (E:ES S A) (a:S) (X:{x : Ensemble (option A) | ctype (prefixing_es a E) x}) : {x : Ensemble A | ctype E x}.
     split with (x:=fun x => proj1_sig X (Some x)).
     destruct X as (X,HX).
     split; [intros y iy z | intros y z iy];
       unfold In,maybe in *; simpl in *; firstorder.
   Defined.
 
-  Lemma unff S A (a:S) (E:ES S A) (X:{x : Ensemble A | ctype E x}) : unf (f a X) = X.
+  Lemma remove_add_none S A (a:S) (E:ES S A) (X:{x : Ensemble A | ctype E x}) :
+    remove_none_sig (add_none_sig a X) = X.
   Proof. now apply specif_eq. Qed.
 
-  Lemma funf S A (a:S) (E:ES S A)
+  Lemma add_remove_none S A (a:S) (E:ES S A)
         (X:{x : Ensemble (option A) | ctype (prefixing_es a E) x})
-        (H:Inhabited _ (proj1_sig X)) : f a (unf X) = X.
+        (H:Inhabited _ (proj1_sig X)) : add_none_sig a (remove_none_sig X) = X.
   Proof.
     apply specif_eq, Extensionality_Ensembles; simpl.
     split; intros x ix; destruct x; unfold In in *; simpl in *; intuition.
@@ -327,18 +328,7 @@ Section PrefixingBisim.
 
   Definition therel S A (E:ES S A) (a:S) :
     option {x : Ensemble A | ctype E x} -> {x : Ensemble (option A) | ctype (prefixing_es a E) x} -> Prop :=
-    fun x y => maybe (proj1_sig y=Empty_set _) (fun x => y = f a x) x.
-
-  Lemma add_none_add_eq A X e: Add (option A) (add_none X) (Some e) = add_none (Add A X e).
-  Proof.
-    apply Extensionality_Ensembles; split; intros x ix; destruct x; intuition.
-    - apply Add_inv in ix; destruct ix.
-      + apply Add_intro1; intuition.
-      + injection H as h; rewrite h; apply Add_intro2.
-    - apply Add_inv in ix; destruct ix; try congruence; intuition.
-    - apply Add_inv in ix; destruct ix; intuition.
-      rewrite H; intuition.
-  Qed.
+    fun x y => maybe (proj1_sig y=Empty_set _) (fun x => y = add_none_sig a x) x.
 
   Lemma ctype_add_none S A (E:ES S A) (a:S) X : ctype E X -> ctype (prefixing_es a E) (add_none X).
   Proof.
@@ -354,13 +344,13 @@ Section PrefixingBisim.
     intros p q rpq p' b tpp'.
     destruct p' as [p'|]; simpl in *.
     - destruct p as [p|]; simpl in *.
-      + exists (f a p'); simpl in *; intuition.
+      + exists (add_none_sig a p'); simpl in *; intuition.
         destruct tpp' as (e,(H1,(H2,(H3,H4)))).
         rewrite rpq; simpl.
         exists (Some e); simpl; rewrite add_none_add_eq; intuition.
         * now apply f_equal.
         * now apply ctype_add_none.
-      + exists (f a (empty _)); simpl in *; intuition.
+      + exists (add_none_sig a (empty _)); simpl in *; intuition.
         * destruct q as (q,Hq).
           assert (add_none (Empty_set A) = Add (option A) q None).
           -- apply Extensionality_Ensembles; split; intros x ix; destruct x; unfold In in *; simpl in *; intuition.
@@ -390,12 +380,11 @@ Section PrefixingBisim.
     split.
     - intros x ix y cxy.
       unfold downclosed in C1.
+      specialize C1 with (Some x) (Some y).
       apply Add_inv in ix; destruct ix.
-      + specialize C1 with (Some x) (Some y).
-        apply H2, Add_intro1 with (x:=e), Add_opt,C1,Add_inv in H; intuition.
+      + apply H2, Add_intro1 with (x:=e), Add_opt,C1,Add_inv in H; intuition.
         injection H0 as h; rewrite h; intuition.
-      + specialize C1 with (Some x) (Some y).
-        assert (In (option A) (Add (option A) q (Some e)) (Some x)).
+      + assert (In (option A) (Add (option A) q (Some e)) (Some x)).
         rewrite H; intuition.
         apply C1,Add_inv in H0; intuition.
         injection H3 as h; rewrite h; intuition.
@@ -416,16 +405,16 @@ Section PrefixingBisim.
   Proof.
     intros q p rqp q' b tqq'.
     destruct tqq' as (e,(H1,(H2,(H3,H4)))).
+    apply Extension in H1.
     destruct p as [p|]; simpl in *.
     - destruct e as [e|].
-      + exists (Some (unf q')); simpl in *.
-        destruct q as (q,Hq); apply (f_equal (@unf _ _ E a)),proj1_sig_eq in rqp; simpl in *.
+      + exists (Some (remove_none_sig q')); simpl in *.
+        destruct q as (q,Hq); apply (f_equal (@remove_none_sig _ _ E a)),proj1_sig_eq in rqp; simpl in *.
         apply Extension in rqp.
         destruct p as (p,Hp); simpl in *.
         split.
         * exists e. intuition.
-          -- apply Extension in H1.
-             apply Extensionality_Ensembles; split; intros x ix; intuition.
+          -- apply Extensionality_Ensembles; split; intros x ix; intuition.
              ++ apply H1 in ix.
                 apply Add_inv in ix.
                 destruct ix.
@@ -439,17 +428,14 @@ Section PrefixingBisim.
           -- apply H3; apply rqp; simpl; intuition.
         * assert (Inhabited _ (proj1_sig q')).
           -- apply (Inhabited_intro _ _ (Some e)).
-             apply Extension in H1.
              destruct H1 as (H11,H12).
              apply H12, Add_intro2.
-          -- now rewrite funf.
+          -- now rewrite add_remove_none.
       + exfalso.
         apply H3.
         apply proj1_sig_eq in rqp.
         destruct q as (q,(Hq1,Hq2)); simpl in *.
-        apply Extension in rqp.
-        destruct rqp as (R1,R2).
-        now apply R2.
+        now rewrite rqp.
     - (* start *)
       apply Extension in rqp; destruct rqp as (R1,R2).
       destruct e.
@@ -465,7 +451,6 @@ Section PrefixingBisim.
           specialize H21 with (Some a0) None.
           apply H21; simpl; intuition.
       + exists (Some (empty _)); simpl in *; intuition.
-        apply Extension in H1.
         apply specif_eq, Extensionality_Ensembles; simpl.
         split; intros x ix; destruct x; unfold In in *; simpl in *; intuition.
         * apply H1, Add_inv in ix.
