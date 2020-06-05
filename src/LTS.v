@@ -6,23 +6,23 @@ Require Import Causality.Utils.
 Set Implicit Arguments.
 
 Record LTS s x :=
-  mkLTS { t : x -> Ensemble (x * s);
+  mkLTS { trans : x -> Ensemble (x * s);
           start : x }.
 
 Definition prefixing_lts S A (a:S) (X:LTS S A) : LTS S (option A) :=
-  let t x :=
+  let trans x :=
       fun '(x',a') =>
         match x with
         | None => maybe False (fun x' => x'=X.(start) /\ a'=a) x'
-        | Some x => maybe False (fun x' => X.(t) x (x',a')) x' end in
-  mkLTS t None.
+        | Some x => maybe False (fun x' => X.(trans) x (x',a')) x' end in
+  mkLTS trans None.
 
 Definition par_lts S A B (X:LTS S A) (Y:LTS S B) :=
-  let t '(x,y) :=
+  let trans '(x,y) :=
       (fun '((x',y'),a) =>
-         (y=y' /\ In _ (X.(t) x) (x',a)) \/ (x=x' /\ In _ (Y.(t) y) (y',a))) in
+         (y=y' /\ In _ (X.(trans) x) (x',a)) \/ (x=x' /\ In _ (Y.(trans) y) (y',a))) in
   let start := (X.(start), Y.(start)) in
-  mkLTS t start.
+  mkLTS trans start.
 
 (* Arbitrary tuple *)
 Definition ATuple (A:Type) : nat -> Type :=
@@ -41,7 +41,7 @@ Fixpoint par_multiple_lts S A n (xs:Vector.t (LTS S A) n) : LTS S (ATuple A n) :
   | Vector.cons _ x n xs =>
     par_lts x (par_multiple_lts xs) end.
 
-Definition Trans S A (X:LTS S A) (p p':A) (a:S) : Prop := In _ (X.(t) p) (p',a).
+Definition Trans S A (X:LTS S A) (p p':A) (a:S) : Prop := In _ (X.(trans) p) (p',a).
 
 Definition Simulation S A B (X:LTS S A) (Y:LTS S B) (R :A -> B -> Prop) :=
   forall p q, R p q ->

@@ -141,21 +141,21 @@ Definition downclosed a (cmp : relation a) (X: Ensemble a) :=
 Definition conflict_free a (cfl : relation a) (X: Ensemble a) :=
   forall x y, In _ X x -> In _ X y -> not (cfl x y).
 
-Definition ctype S A (E: ES S A) x := downclosed E.(cmp) x /\ conflict_free E.(cfl) x.
+Definition Configuration S A (E: ES S A) x := downclosed E.(cmp) x /\ conflict_free E.(cfl) x.
 
-Lemma empty S A (E:ES S A) : sig (ctype E).
+Lemma empty S A (E:ES S A) : sig (Configuration E).
 Proof.
   split with (x:=Empty_set _).
   split; [intros x ix | intros x y ix];
     now apply Noone_in_empty in ix.
 Defined.
 
-Definition lts_of_es S A (E:ES S A) : LTS S (sig (ctype E)) :=
+Definition lts_of_es S A (E:ES S A) : LTS S (sig (Configuration E)) :=
   let t x :=
       let x := proj1_sig x in
       fun '(c,a) =>
         let x' := proj1_sig c in
-        exists e, (x'=Add _ x e /\ ctype E (Add _ x e) /\ not (In _ x e) /\ E.(lbl) e = a) in
+        exists e, (x'=Add _ x e /\ Configuration E (Add _ x e) /\ not (In _ x e) /\ E.(lbl) e = a) in
   mkLTS t (empty _).
 
 (* ProofIrrelevance will be used to prove the equality of two sig negleting the equality of the proof. *)
@@ -174,8 +174,8 @@ Proof. destruct x as (x,hx), y as (y,hy); apply specif_eq'. Qed.
 
 Section ParBisim.
 
-  Lemma union_ens S A B (E:ES S A) (F:ES S B) (P : {x : Ensemble A | ctype E x} * {x : Ensemble B | ctype F x}) :
-    {x:Ensemble (A + B) | ctype (par_es E F) x}.
+  Lemma union_ens S A B (E:ES S A) (F:ES S B) (P : {x : Ensemble A | Configuration E x} * {x : Ensemble B | Configuration F x}) :
+    {x:Ensemble (A + B) | Configuration (par_es E F) x}.
   Proof.
     split with (x:=either (fun x => In _ (proj1_sig (fst P)) x) (fun y => In _ (proj1_sig (snd P)) y)).
     destruct P as (X,Y).
@@ -187,8 +187,8 @@ Section ParBisim.
       destruct x,y; firstorder.
   Defined.
 
-  Lemma split_ens {S A B} (E:ES S A) (F:ES S B) (X:{x:Ensemble (A + B) | ctype (par_es E F) x}):
-    {x : Ensemble A | ctype E x}*{x : Ensemble B | ctype F x}.
+  Lemma split_ens {S A B} (E:ES S A) (F:ES S B) (X:{x:Ensemble (A + B) | Configuration (par_es E F) x}):
+    {x : Ensemble A | Configuration E x}*{x : Ensemble B | Configuration F x}.
   Proof.
     split;
       [split with (x:=left_part (proj1_sig X)) | split with (x:=right_part (proj1_sig X)) ];
@@ -208,13 +208,13 @@ Section ParBisim.
       split; intuition.
   Qed.
 
-  Lemma par_ctype S A B (E:ES S A) (F:ES S B) X :
-    ctype (par_es E F) X -> ctype E (left_part X) /\ ctype F (right_part X).
+  Lemma par_Configuration S A B (E:ES S A) (F:ES S B) X :
+    Configuration (par_es E F) X -> Configuration E (left_part X) /\ Configuration F (right_part X).
   Proof. firstorder. Qed.
 
-  Lemma ctype_either_l S A B (E:ES S A) (F:ES S B) X Y e:
-    ctype E (Add A X e) -> ctype F Y ->
-    ctype (par_es E F)
+  Lemma Configuration_either_l S A B (E:ES S A) (F:ES S B) X Y e:
+    Configuration E (Add A X e) -> Configuration F Y ->
+    Configuration (par_es E F)
           (Add (A + B) (disjoint_union X Y) (inl e)).
   Proof.
     destruct (add_either X Y) as (HL,HR).
@@ -222,9 +222,9 @@ Section ParBisim.
     split; [intros x hx y| intros x y]; destruct x,y; firstorder.
   Qed.
 
-  Lemma ctype_either_r S A B (E:ES S A) (F:ES S B) X Y e:
-    ctype E X -> ctype F (Add B Y e) ->
-    ctype (par_es E F)
+  Lemma Configuration_either_r S A B (E:ES S A) (F:ES S B) X Y e:
+    Configuration E X -> Configuration F (Add B Y e) ->
+    Configuration (par_es E F)
           (Add (A + B) (disjoint_union X Y) (inr e)).
   Proof.
     destruct (add_either X Y) as (HL,HR).
@@ -246,12 +246,12 @@ Section ParBisim.
       + apply Extension in H; simpl.
         destruct (add_either p1 p2) as (P1,P2); rewrite P1.
         apply Extensionality_Ensembles; split; rewrite <- H1; intros x ix; destruct x; firstorder.
-      + now apply ctype_either_l.
+      + now apply Configuration_either_l.
     - exists (inr e); simpl; intuition.
       + apply Extension in H; simpl.
         destruct (add_either p1 p2) as (P1,P2); rewrite P2.
         apply Extensionality_Ensembles; split; rewrite <- H1; intros x ix; destruct x; firstorder.
-      + now apply ctype_either_r.
+      + now apply Configuration_either_r.
   Qed.
 
   Lemma par_sim2 {S A B} (E:ES S A) (F:ES S B) :
@@ -271,15 +271,13 @@ Section ParBisim.
     - left; split; simpl.
       + apply specif_eq; simpl.
         now rewrite wrong_add2 in Hr.
-      + unfold In,t.
-        exists a0; rewrite add_left; intuition; simpl.
-        now destruct (par_ctype H1).
+      + exists a0; rewrite add_left; intuition; simpl.
+        now destruct (par_Configuration H1).
     - right; split; simpl.
       + apply specif_eq; simpl.
         now rewrite wrong_add1 in Hl.
-      + unfold In,t.
-        exists b; rewrite add_right; intuition; simpl.
-        now destruct (par_ctype H1).
+      + exists b; rewrite add_right; intuition; simpl.
+        now destruct (par_Configuration H1).
   Qed.
 
   Theorem par_bisim S A B (E:ES S A) (F:ES S B) :
@@ -295,27 +293,35 @@ Section ParBisim.
 
 End ParBisim.
 
+Require Import Coq.Classes.RelationClasses.
+
+Instance transitive_same_set A : Transitive (Same_set A).
+Proof. firstorder. Qed.
+
+Instance symmetric_same_set A : Symmetric (Same_set A).
+Proof. firstorder. Qed.
+
 Section PrefixingBisim.
 
-  Definition add_none_sig S A (E:ES S A) (a:S)  (x:{x : Ensemble A | ctype E x}) : {x : Ensemble (option A) | ctype (prefixing_es a E) x}.
+  Definition add_none_sig S A (E:ES S A) (a:S)  (x:{x : Ensemble A | Configuration E x}) : {x : Ensemble (option A) | Configuration (prefixing_es a E) x}.
     split with (x:=add_none (proj1_sig x)).
     split; [intros y iy z | intros y z iy];
       destruct x,y,z; unfold In,maybe in *; simpl in *; firstorder.
   Defined.
 
-  Definition remove_none_sig S A (E:ES S A) (a:S) (X:{x : Ensemble (option A) | ctype (prefixing_es a E) x}) : {x : Ensemble A | ctype E x}.
+  Definition remove_none_sig S A (E:ES S A) (a:S) (X:{x : Ensemble (option A) | Configuration (prefixing_es a E) x}) : {x : Ensemble A | Configuration E x}.
     split with (x:=fun x => proj1_sig X (Some x)).
     destruct X as (X,HX).
     split; [intros y iy z | intros y z iy];
       unfold In,maybe in *; simpl in *; firstorder.
   Defined.
 
-  Lemma remove_add_none S A (a:S) (E:ES S A) (X:{x : Ensemble A | ctype E x}) :
+  Lemma remove_add_none S A (a:S) (E:ES S A) (X:{x : Ensemble A | Configuration E x}) :
     remove_none_sig (add_none_sig a X) = X.
   Proof. now apply specif_eq. Qed.
 
   Lemma add_remove_none S A (a:S) (E:ES S A)
-        (X:{x : Ensemble (option A) | ctype (prefixing_es a E) x})
+        (X:{x : Ensemble (option A) | Configuration (prefixing_es a E) x})
         (H:Inhabited _ (proj1_sig X)) : add_none_sig a (remove_none_sig X) = X.
   Proof.
     apply specif_eq, Extensionality_Ensembles; simpl.
@@ -327,10 +333,10 @@ Section PrefixingBisim.
   Qed.
 
   Definition therel S A (E:ES S A) (a:S) :
-    option {x : Ensemble A | ctype E x} -> {x : Ensemble (option A) | ctype (prefixing_es a E) x} -> Prop :=
+    option {x : Ensemble A | Configuration E x} -> {x : Ensemble (option A) | Configuration (prefixing_es a E) x} -> Prop :=
     fun x y => maybe (proj1_sig y=Empty_set _) (fun x => y = add_none_sig a x) x.
 
-  Lemma ctype_add_none S A (E:ES S A) (a:S) X : ctype E X -> ctype (prefixing_es a E) (add_none X).
+  Lemma Configuration_add_none S A (E:ES S A) (a:S) X : Configuration E X -> Configuration (prefixing_es a E) (add_none X).
   Proof.
     intros H.
     split.
@@ -349,7 +355,7 @@ Section PrefixingBisim.
         rewrite rpq; simpl.
         exists (Some e); simpl; rewrite add_none_add_eq; intuition.
         * now apply f_equal.
-        * now apply ctype_add_none.
+        * now apply Configuration_add_none.
       + exists (add_none_sig a (empty _)); simpl in *; intuition.
         * destruct q as (q,Hq).
           assert (add_none (Empty_set A) = Add (option A) q None).
@@ -359,7 +365,7 @@ Section PrefixingBisim.
              rewrite rpq in H3; now apply Noone_in_empty in H3.
           -- exists None; simpl;intuition.
              ++ rewrite <- H1.
-                now apply ctype_add_none.
+                now apply Configuration_add_none.
              ++ apply Extension in rpq.
                 now apply rpq, Noone_in_empty in H2.
         * now rewrite H.
@@ -373,8 +379,8 @@ Section PrefixingBisim.
     - injection H as h; rewrite h; apply Add_intro2.
   Qed.
 
-  Lemma ctype_add S A (E:ES S A) (a:S) q e :
-    ctype (prefixing_es a E) (Add (option A) q (Some e)) -> ctype E (Add A (fun x : A => q (Some x)) e).
+  Lemma Configuration_add S A (E:ES S A) (a:S) q e :
+    Configuration (prefixing_es a E) (Add (option A) q (Some e)) -> Configuration E (Add A (fun x : A => q (Some x)) e).
   Proof.
     intros (C1,C2).
     split.
@@ -417,7 +423,7 @@ Section PrefixingBisim.
                 injection H0 as h; rewrite h; intuition.
              ++ apply H1; apply Add_inv in ix; destruct ix; intuition.
                 rewrite H0; intuition.
-          -- now apply ctype_add with a.
+          -- now apply Configuration_add with a.
           -- apply H3; apply Extension in rqp; now apply rqp.
         * assert (Inhabited _ (proj1_sig q')).
           -- apply (Inhabited_intro _ _ (Some e)).
@@ -434,20 +440,21 @@ Section PrefixingBisim.
       + exfalso.
         assert (~ (In _ (Add _ (proj1_sig q) (Some a0)) None)).
         * unfold not; intros H.
-          apply Add_inv in H.
-          destruct H; try congruence; firstorder.
+          apply Add_inv in H; destruct H; try congruence; firstorder.
         * apply H.
           destruct H2 as (H21,H22).
           unfold downclosed,cmp,prefixing_es in H21.
           specialize H21 with (Some a0) None.
           apply H21; simpl; intuition.
       + exists (Some (empty _)); simpl in *; intuition.
-        apply specif_eq, Extensionality_Ensembles; simpl.
+        apply specif_eq,Extensionality_Ensembles; simpl.
+        symmetry in H1.
+        transitivity (Add (option A) (proj1_sig q) None); intuition.
         split; intros x ix; destruct x; unfold In in *; simpl in *; intuition.
-        * apply H1, Add_inv in ix.
+        * apply Add_inv in ix.
           destruct ix; try congruence.
           now apply R1,Noone_in_empty in H.
-        * apply H1, Add_intro2.
+        * apply Add_intro2.
   Qed.
 
   Theorem prefixing_bisim S A (E:ES S A) (a:S) :
