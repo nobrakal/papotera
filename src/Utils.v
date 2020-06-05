@@ -1,3 +1,4 @@
+Require Import Coq.Sets.Constructive_sets.
 Set Implicit Arguments.
 
 Definition maybe A B (e:B) (f:A -> B) (x:option A) :=
@@ -5,12 +6,16 @@ Definition maybe A B (e:B) (f:A -> B) (x:option A) :=
   | None => e
   | Some x => f x end.
 
+Definition add_none A (X: Ensemble A) : Ensemble (option A) :=
+  maybe True X.
+
+Lemma add_none_alt A (X:Ensemble A) : add_none X = Add _ (maybe False X) None.
+Proof. apply Extensionality_Ensembles; split; intros x ix; destruct x; unfold In in *; simpl in * ;firstorder.
+
 Definition either A B C (f: A -> C) (g: B -> C) (x:A + B) :=
   match x with
   | inl x => f x
   | inr x => g x end.
-
-Require Import Coq.Sets.Constructive_sets.
 
 Definition left_part  A B (X : Ensemble (A+B)) : Ensemble A := fun x => X (inl x).
 Definition right_part A B (X : Ensemble (A+B)) : Ensemble B := fun x => X (inr x).

@@ -243,12 +243,12 @@ Section ParBisim.
     rewrite rpq in *.
     destruct tpp' as [H|H]; destruct H as (H1,(e,He)).
     - exists (inl e); simpl; intuition.
-      + apply Extension in H; destruct H as (Hr,Hl); simpl.
+      + apply Extension in H; simpl.
         destruct (add_either p1 p2) as (P1,P2); rewrite P1.
         apply Extensionality_Ensembles; split; rewrite <- H1; intros x ix; destruct x; firstorder.
       + now apply ctype_either_l.
     - exists (inr e); simpl; intuition.
-      + apply Extension in H; destruct H as (Hr,Hl); simpl.
+      + apply Extension in H; simpl.
         destruct (add_either p1 p2) as (P1,P2); rewrite P2.
         apply Extensionality_Ensembles; split; rewrite <- H1; intros x ix; destruct x; firstorder.
       + now apply ctype_either_r.
@@ -298,7 +298,7 @@ End ParBisim.
 Section PrefixingBisim.
 
   Definition f S A (E:ES S A) (a:S)  (x:{x : Ensemble A | ctype E x}) : {x : Ensemble (option A) | ctype (prefixing_es a E) x}.
-    split with (x:= maybe True (proj1_sig x)).
+    split with (x:=add_none (proj1_sig x)).
     split; [intros y iy z | intros y z iy];
       destruct x,y,z; unfold In,maybe in *; simpl in *; firstorder.
   Defined.
@@ -329,6 +329,38 @@ Section PrefixingBisim.
     option {x : Ensemble A | ctype E x} -> {x : Ensemble (option A) | ctype (prefixing_es a E) x} -> Prop :=
     fun x y => maybe (proj1_sig y=Empty_set _) (fun x => y = f a x) x.
 
+  Lemma ctype_singleton_none S A (E:ES S A) (a:S) : ctype (prefixing_es a E) (Singleton _ None).
+  Proof.
+    split.
+    - intros x ix y cxy.
+      apply Singleton_inv in ix.
+      rewrite <- ix in cxy; simpl in *.
+      destruct y; simpl in *; intuition.
+    - intros x y H cxy; unfold not; intros C.
+      apply Singleton_inv in H.
+      apply Singleton_inv in cxy.
+      now rewrite <- H, <- cxy in C.
+  Qed.
+
+  Lemma add_none_add_eq A X e: Add (option A) (add_none X) (Some e) = add_none (Add A X e).
+  Proof.
+    apply Extensionality_Ensembles; split; intros x ix; destruct x; intuition.
+    - apply Add_inv in ix; destruct ix.
+      + apply Add_intro1; intuition.
+      + injection H as h; rewrite h; apply Add_intro2.
+    - apply Add_inv in ix; destruct ix; try congruence; intuition.
+    - apply Add_inv in ix; destruct ix; intuition.
+      rewrite H; intuition.
+  Qed.
+
+  Lemma ctype_add_none S A (E:ES S A) (a:S) X : ctype E X -> ctype (prefixing_es a E) (add_none X).
+  Proof.
+    intros H.
+    split.
+    - intros x ix y cxy; destruct x,y; firstorder.
+    - intros x y R cxy; destruct x,y; firstorder.
+  Qed.
+
   Lemma pref_sim1 S A (E:ES S A) (a:S) :
     Simulation (prefixing_lts a (lts_of_es E)) (lts_of_es (prefixing_es a E)) (@therel _ _ E a).
   Proof.
@@ -337,14 +369,62 @@ Section PrefixingBisim.
     - destruct p as [p|]; simpl in *.
       + exists (f a p'); simpl in *; intuition.
         destruct tpp' as (e,(H1,(H2,(H3,H4)))).
-        exists (Some e); simpl; intuition.
-        * admit.
-        * admit.
-        * admit.
+        rewrite rpq; simpl.
+        exists (Some e); simpl; rewrite add_none_add_eq; intuition.
+        * now apply f_equal.
+        * now apply ctype_add_none.
       + exists (f a (empty _)); simpl in *; intuition.
-        * exists None; intuition; admit.
+        * exists None; intuition.
+          -- apply Extensionality_Ensembles; split; intros x ix; destruct x; unfold In in *; simpl in *; intuition.
+             apply Add_intro2.
+             apply Add_inv in ix.
+             destruct ix; simpl; try congruence.
+             apply Extension in rpq.
+             now apply rpq, Noone_in_empty in H1.
+          -- destruct q as (q,Hq); simpl in *. (* TODO use ctype_add_none *)
+             assert (Add _ q None = Singleton _ None).
+             apply Extensionality_Ensembles; rewrite rpq; split; intros x ix; destruct x; intuition.
+             apply Add_inv in ix; destruct ix; try congruence; now apply Noone_in_empty in H1.
+             apply Singleton_inv in ix; congruence.
+             rewrite H1; apply ctype_singleton_none.
+          -- apply Extension in rpq. (* TODO facto this *)
+             now apply rpq, Noone_in_empty in H1.
         * now rewrite H.
     - exfalso; destruct p; intuition.
+  Qed.
+
+  Lemma Add_opt A q x e: In A (Add A (fun x : A => q (Some x)) e) x <-> In (option A) (Add (option A) q (Some e)) (Some x).
+  Proof.
+    split; intros H; apply Add_inv in H; destruct H; intuition.
+    - rewrite H; apply Add_intro2.
+    - injection H as h; rewrite h; apply Add_intro2.
+  Qed.
+
+  Lemma ctype_add S A (E:ES S A) (a:S) q p e : Same_set A (fun x : A => q (Some x)) (fun x : A => p x) -> ctype (prefixing_es a E) (Add (option A) q (Some e)) -> ctype E (Add A p e).
+  Proof.
+    intros (H1,H2) (C1,C2).
+    split.
+    - intros x ix y cxy.
+      unfold downclosed in C1.
+      apply Add_inv in ix; destruct ix.
+      + specialize C1 with (Some x) (Some y).
+        apply H2, Add_intro1 with (x:=e), Add_opt,C1,Add_inv in H; intuition.
+        injection H0 as h; rewrite h; intuition.
+      + specialize C1 with (Some x) (Some y).
+        assert (In (option A) (Add (option A) q (Some e)) (Some x)).
+        rewrite H; intuition.
+        apply C1,Add_inv in H0; intuition.
+        injection H3 as h; rewrite h; intuition.
+    - intros x y H cxy; unfold not; intros C.
+      unfold conflict_free in C2.
+      specialize C2 with (Some x) (Some y).
+      apply C2; intuition.
+      + apply Add_inv in H; destruct H.
+        * apply H2 in H; intuition.
+        * rewrite H; intuition.
+      + apply Add_inv in cxy; destruct cxy.
+        * apply H2 in H0; intuition.
+        * rewrite H0; intuition.
   Qed.
 
   Lemma pref_sim2 S A (E:ES S A) (a:S) :
@@ -352,16 +432,29 @@ Section PrefixingBisim.
   Proof.
     intros q p rqp q' b tqq'.
     destruct tqq' as (e,(H1,(H2,(H3,H4)))).
-    destruct p; simpl in *.
-    - destruct e.
+    destruct p as [p|]; simpl in *.
+    - destruct e as [e|].
       + exists (Some (unf q')); simpl in *.
+        destruct q as (q,Hq); apply (f_equal (@unf _ _ E a)),proj1_sig_eq in rqp; simpl in *.
+        apply Extension in rqp.
+        destruct p as (p,Hp); simpl in *.
         split.
-        * exists a0; intuition.
-          -- admit.
-          -- admit.
-          -- admit.
+        * exists e. intuition.
+          -- apply Extension in H1.
+             apply Extensionality_Ensembles; split; intros x ix; intuition.
+             ++ apply H1 in ix.
+                apply Add_inv in ix.
+                destruct ix.
+                ** apply rqp in H; intuition.
+                ** injection H as h; rewrite h; intuition.
+             ++ apply Add_inv in ix.
+                destruct ix.
+                ** apply rqp in H; apply H1; intuition.
+                ** rewrite <- H. apply H1; intuition.
+          -- apply ctype_add with (a:=a) (q:=q); intuition.
+          -- apply H3; apply rqp; simpl; intuition.
         * assert (Inhabited _ (proj1_sig q')).
-          -- apply (Inhabited_intro _ _ (Some a0)).
+          -- apply (Inhabited_intro _ _ (Some e)).
              apply Extension in H1.
              destruct H1 as (H11,H12).
              apply H12, Add_intro2.
@@ -388,14 +481,14 @@ Section PrefixingBisim.
           specialize H21 with (Some a0) None.
           apply H21; simpl; intuition.
       + exists (Some (empty _)); simpl in *; intuition.
-        apply Extension in H1; destruct H1 as (H11,H12).
+        apply Extension in H1.
         apply specif_eq, Extensionality_Ensembles; simpl.
         split; intros x ix; destruct x; unfold In in *; simpl in *; intuition.
-        * apply H11, Add_inv in ix.
+        * apply H1, Add_inv in ix.
           destruct ix; try congruence.
           now apply R1,Noone_in_empty in H.
-        * apply H12, Add_intro2.
-  Admitted.
+        * apply H1, Add_intro2.
+  Qed.
 
   Theorem prefixing_bisim S A (E:ES S A) (a:S) :
     Bisimilar (prefixing_lts a (lts_of_es E)) (lts_of_es (prefixing_es a E)).
