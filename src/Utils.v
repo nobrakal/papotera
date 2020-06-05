@@ -9,9 +9,6 @@ Definition maybe A B (e:B) (f:A -> B) (x:option A) :=
 Definition add_none A (X: Ensemble A) : Ensemble (option A) :=
   maybe True X.
 
-Lemma add_none_alt A (X:Ensemble A) : add_none X = Add _ (maybe False X) None.
-Proof. apply Extensionality_Ensembles; split; intros x ix; destruct x; unfold In in *; simpl in * ;firstorder.
-
 Definition either A B C (f: A -> C) (g: B -> C) (x:A + B) :=
   match x with
   | inl x => f x

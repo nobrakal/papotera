@@ -329,19 +329,6 @@ Section PrefixingBisim.
     option {x : Ensemble A | ctype E x} -> {x : Ensemble (option A) | ctype (prefixing_es a E) x} -> Prop :=
     fun x y => maybe (proj1_sig y=Empty_set _) (fun x => y = f a x) x.
 
-  Lemma ctype_singleton_none S A (E:ES S A) (a:S) : ctype (prefixing_es a E) (Singleton _ None).
-  Proof.
-    split.
-    - intros x ix y cxy.
-      apply Singleton_inv in ix.
-      rewrite <- ix in cxy; simpl in *.
-      destruct y; simpl in *; intuition.
-    - intros x y H cxy; unfold not; intros C.
-      apply Singleton_inv in H.
-      apply Singleton_inv in cxy.
-      now rewrite <- H, <- cxy in C.
-  Qed.
-
   Lemma add_none_add_eq A X e: Add (option A) (add_none X) (Some e) = add_none (Add A X e).
   Proof.
     apply Extensionality_Ensembles; split; intros x ix; destruct x; intuition.
@@ -374,21 +361,18 @@ Section PrefixingBisim.
         * now apply f_equal.
         * now apply ctype_add_none.
       + exists (f a (empty _)); simpl in *; intuition.
-        * exists None; intuition.
+        * destruct q as (q,Hq).
+          assert (add_none (Empty_set A) = Add (option A) q None).
           -- apply Extensionality_Ensembles; split; intros x ix; destruct x; unfold In in *; simpl in *; intuition.
              apply Add_intro2.
              apply Add_inv in ix.
              destruct ix; simpl; try congruence.
-             apply Extension in rpq.
-             now apply rpq, Noone_in_empty in H1.
-          -- destruct q as (q,Hq); simpl in *. (* TODO use ctype_add_none *)
-             assert (Add _ q None = Singleton _ None).
-             apply Extensionality_Ensembles; rewrite rpq; split; intros x ix; destruct x; intuition.
-             apply Add_inv in ix; destruct ix; try congruence; now apply Noone_in_empty in H1.
-             apply Singleton_inv in ix; congruence.
-             rewrite H1; apply ctype_singleton_none.
-          -- apply Extension in rpq. (* TODO facto this *)
-             now apply rpq, Noone_in_empty in H1.
+             rewrite rpq in H1; now apply Noone_in_empty in H1.
+          -- exists None; simpl ;intuition.
+             ++ rewrite <- H1.
+                now apply ctype_add_none.
+             ++ apply Extension in rpq.
+                now apply rpq, Noone_in_empty in H2.
         * now rewrite H.
     - exfalso; destruct p; intuition.
   Qed.
