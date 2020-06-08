@@ -283,7 +283,7 @@ Section PrefixingBisim.
   Defined.
 
   Definition remove_none_sig (X:sig (Configuration (prefixing_es E a))) : sig (Configuration E).
-    split with (x:=fun x => proj1_sig X (Some x)).
+    split with (x:=ens_of_opt (proj1_sig X)).
     destruct X as (X,HX).
     split; [intros y iy z | intros y z iy];
       unfold In,maybe in *; simpl in *; firstorder.
@@ -347,7 +347,7 @@ Section PrefixingBisim.
   Qed.
 
   Lemma Configuration_prefixing_add X e :
-    Configuration (prefixing_es E a) (Add _ X (Some e)) -> Configuration E (Add _ (fun x  => X (Some x)) e).
+    Configuration (prefixing_es E a) (Add _ X (Some e)) -> Configuration E (Add _ (ens_of_opt X) e).
   Proof.
     intros (C1,C2).
     split.
@@ -375,25 +375,18 @@ Section PrefixingBisim.
     intros q p rqp q' b tqq'.
     destruct tqq' as (e,(H1,(H2,(H3,H4)))).
     destruct p as [p|]; simpl in *.
-    -     apply Extension in H1.
-
-          destruct e as [e|].
+    - destruct e as [e|].
       + exists (Some (remove_none_sig q')); simpl in *.
         destruct q as (q,Hq); apply (f_equal remove_none_sig),proj1_sig_eq in rqp; simpl in *.
         destruct p as (p,Hp); simpl in *.
         split.
-        * assert ((Add _ p e) = Add _ (fun x => p x) e) by intuition.
-          exists e; rewrite H, <- rqp; intuition.
-          -- apply Extensionality_Ensembles; split; intros x ix.
-             ++ apply H1,Add_inv in ix; destruct ix; intuition.
-                injection H0 as h; rewrite h; intuition.
-             ++ apply H1; apply Add_inv in ix; destruct ix; intuition.
-                rewrite H0; intuition.
+        * rewrite ens_of_opt_add_none in rqp.
+          exists e; rewrite <- rqp; intuition.
+          -- now rewrite H1,ens_of_opt_add,rqp.
           -- now apply Configuration_prefixing_add.
-          -- apply H3; apply Extension in rqp; now apply rqp.
         * assert (Inhabited _ (proj1_sig q')).
-          -- apply (Inhabited_intro _ _ (Some e)).
-             apply H1, Add_intro2.
+          -- rewrite H1.
+             apply (Inhabited_intro _ _ (Some e)), Add_intro2.
           -- now rewrite add_remove_none.
       + exfalso.
         apply H3.

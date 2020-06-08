@@ -26,6 +26,20 @@ Proof.
     rewrite H; intuition.
 Qed.
 
+Definition ens_of_opt A (E:Ensemble (option A)) : Ensemble A := fun x => E (Some x).
+
+Lemma ens_of_opt_add A (E:Ensemble (option A)) e :
+  ens_of_opt (Add _ E (Some e)) = Add _ (ens_of_opt E) e.
+Proof.
+  apply Extensionality_Ensembles; split; intros x ix; apply Add_inv in ix; destruct ix; intuition.
+  - injection H as h; rewrite h; intuition.
+  - now apply Add_intro1.
+  - rewrite H; now apply Add_intro2.
+Qed.
+
+Lemma ens_of_opt_add_none A (E:Ensemble A) : ens_of_opt (add_none E) = E.
+Proof. intuition. Qed.
+
 Definition either A B C (f: A -> C) (g: B -> C) (x:A + B) :=
   match x with
   | inl x => f x
