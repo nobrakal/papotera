@@ -1,4 +1,6 @@
 -R src/ Causality
 src/Utils.v
 src/LTS.v
-src/ES.v
+src/ES/Definition.v
+src/ES/Parallel.v
+src/ES/Prefixing.v
