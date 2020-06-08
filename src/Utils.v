@@ -9,6 +9,12 @@ Definition maybe A B (e:B) (f:A -> B) (x:option A) :=
 Definition add_none A (X: Ensemble A) : Ensemble (option A) :=
   maybe True X.
 
+Lemma Add_none_empty A : add_none (Empty_set A) = Add _ (Empty_set _) None.
+Proof.
+  apply Extensionality_Ensembles; split; intros x ix; destruct x; firstorder.
+  apply Add_inv in ix; destruct ix; firstorder congruence.
+Qed.
+
 Lemma add_none_add_eq A X e: Add (option A) (add_none X) (Some e) = add_none (Add A X e).
 Proof.
   apply Extensionality_Ensembles; split; intros x ix; destruct x; intuition.

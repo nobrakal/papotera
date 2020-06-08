@@ -328,46 +328,40 @@ Section PrefixingBisim.
         * now apply f_equal.
         * now apply Configuration_add_none.
       + exists (add_none_sig (empty _)); simpl in *; intuition.
-        * destruct q as (q,Hq).
-          assert (add_none (Empty_set _) = Add (option _) q None).
-          -- apply Extensionality_Ensembles; split; intros x ix; destruct x; unfold In in *; simpl in *;
-               firstorder using Add_intro2.
-             apply Add_inv in ix; destruct ix; simpl; try congruence.
-             rewrite rpq in H3; now apply Noone_in_empty in H3.
-          -- exists None; simpl;intuition.
-             ++ rewrite <- H1.
-                now apply Configuration_add_none.
-             ++ apply Extension in rpq.
-                now apply rpq, Noone_in_empty in H2.
+        * destruct q as (q,Hq); rewrite rpq.
+          exists None; simpl in *; intuition.
+          -- now rewrite Add_none_empty.
+          -- rewrite <- H0, <- Add_none_empty.
+             now apply Configuration_add_none.
+          -- now apply Noone_in_empty in H1.
         * now rewrite H.
     - exfalso; destruct p; intuition.
   Qed.
 
-  Lemma Add_opt A q x e: In A (Add A (fun x : A => q (Some x)) e) x <-> In (option A) (Add (option A) q (Some e)) (Some x).
+  Lemma Add_opt A X x e:
+    In A (Add _ (fun x : A => X (Some x)) e) x <-> In (option A) (Add _ X (Some e)) (Some x).
   Proof.
     split; intros H; apply Add_inv in H; destruct H; intuition.
     - rewrite H; apply Add_intro2.
     - injection H as h; rewrite h; apply Add_intro2.
   Qed.
 
-  Lemma Configuration_add q e :
-    Configuration (prefixing_es E a) (Add _ q (Some e)) -> Configuration E (Add _ (fun x  => q (Some x)) e).
+  Lemma Configuration_prefixing_add X e :
+    Configuration (prefixing_es E a) (Add _ X (Some e)) -> Configuration E (Add _ (fun x  => X (Some x)) e).
   Proof.
     intros (C1,C2).
     split.
     - intros x ix y cxy.
-      unfold downclosed in C1.
-      specialize C1 with (Some x) (Some y).
+      unfold downclosed in C1; specialize C1 with (Some x) (Some y).
       apply Add_inv in ix; destruct ix.
       + apply Add_intro1 with (x:=e), Add_opt,C1,Add_inv in H; intuition.
         injection H0 as h; rewrite h; intuition.
-      + assert (In _ (Add _ q (Some e)) (Some x)).
+      + assert (In _ (Add _ X (Some e)) (Some x)).
         rewrite H; intuition.
         apply C1,Add_inv in H0; intuition.
         injection H1 as h; rewrite h; intuition.
     - intros x y H cxy; unfold not; intros C.
-      unfold conflict_free in C2.
-      specialize C2 with (Some x) (Some y).
+      unfold conflict_free in C2; specialize C2 with (Some x) (Some y).
       apply C2; intuition.
       + apply Add_inv in H; destruct H; intuition.
         rewrite H; intuition.
@@ -380,9 +374,10 @@ Section PrefixingBisim.
   Proof.
     intros q p rqp q' b tqq'.
     destruct tqq' as (e,(H1,(H2,(H3,H4)))).
-    apply Extension in H1.
     destruct p as [p|]; simpl in *.
-    - destruct e as [e|].
+    -     apply Extension in H1.
+
+          destruct e as [e|].
       + exists (Some (remove_none_sig q')); simpl in *.
         destruct q as (q,Hq); apply (f_equal remove_none_sig),proj1_sig_eq in rqp; simpl in *.
         destruct p as (p,Hp); simpl in *.
@@ -394,7 +389,7 @@ Section PrefixingBisim.
                 injection H0 as h; rewrite h; intuition.
              ++ apply H1; apply Add_inv in ix; destruct ix; intuition.
                 rewrite H0; intuition.
-          -- now apply Configuration_add.
+          -- now apply Configuration_prefixing_add.
           -- apply H3; apply Extension in rqp; now apply rqp.
         * assert (Inhabited _ (proj1_sig q')).
           -- apply (Inhabited_intro _ _ (Some e)).
@@ -406,9 +401,9 @@ Section PrefixingBisim.
         destruct q as (q,(Hq1,Hq2)); simpl in *.
         now rewrite rqp.
     - (* start *)
-      apply Extension in rqp; destruct rqp as (R1,R2).
       destruct e.
-      + exfalso.
+      + apply Extension in rqp; destruct rqp as (R1,R2).
+        exfalso.
         assert (~ (In _ (Add _ (proj1_sig q) (Some e)) None)).
         * unfold not; intros H.
           apply Add_inv in H; destruct H; try congruence; firstorder.
@@ -418,14 +413,8 @@ Section PrefixingBisim.
           specialize H21 with (Some e) None.
           apply H21; simpl; intuition.
       + exists (Some (empty _)); simpl in *; intuition.
-        apply specif_eq,Extensionality_Ensembles; simpl.
-        symmetry in H1.
-        transitivity (Add _ (proj1_sig q) None); intuition.
-        split; intros x ix; destruct x; unfold In in *; simpl in *; intuition.
-        * apply Add_inv in ix.
-          destruct ix; try congruence.
-          now apply R1,Noone_in_empty in H.
-        * apply Add_intro2.
+        apply specif_eq; simpl.
+        now rewrite H1, Add_none_empty, rqp.
   Qed.
 
   Theorem prefixing_bisim :
