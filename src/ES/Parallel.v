@@ -238,7 +238,55 @@ Section Arbitrary.
     let lbl := fun '(existT _ i x) => lbl (Family i) x in
     mkES cmp_order cfl_conflict inherit lbl.
 
-  Theorem par_arbitrary_bisim (Lbl:Set) (Family: I -> ES Lbl) :
-    Bisimilar (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family)).
+  Variables (Lbl:Set) (Family : I -> ES Lbl).
+
+  Definition union_arbitrary_ens (X:forall i:I, sig (Configuration (Family i))) :
+    sig (Configuration (arbitrary_par_es Family)).
+  Proof.
+    split with (x:=fun '(existT _ i x) => In _ (proj1_sig (X i)) x).
+    split.
+    - intros (i,x) ix (j,y) (H,cxy).
+      destruct H.
+      unfold In in *.
+      destruct (X i) as (Xi,HXi); simpl in *.
+      firstorder.
+    - intros (i,x) (j,y) ix iy (H,cxy).
+      destruct H.
+      unfold In in *.
+      destruct (X j) as (Xi,HXi); simpl in *.
+      firstorder.
+  Defined.
+
+  Lemma par_arbitrary_sim1 :
+    Simulation (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family))
+               (fun x y => y=union_arbitrary_ens x).
+  Proof.
+    intros p q rpq p' a tpp'.
+    exists (union_arbitrary_ens p'); intuition.
+    destruct tpp' as (i,[H1 H2]).
   Admitted.
+
+  Lemma par_arbitrary_sim2 :
+    Simulation (lts_of_es (arbitrary_par_es Family)) (par_arbitrary_lts (compose (@lts_of_es Lbl) Family))
+               (fun y x => y=union_arbitrary_ens x).
+  Proof.
+  Admitted.
+
+  Lemma empty_union_arbitrary :
+    empty (arbitrary_par_es Family) = union_arbitrary_ens (fun i : I => empty (Family i)).
+  Proof.
+    apply specif_eq, Extensionality_Ensembles; simpl.
+    split; [intros i ix | intros (H,i) ix]; now apply Noone_in_empty in ix.
+  Qed.
+
+  Theorem par_arbitrary_bisim :
+    Bisimilar (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family)).
+  Proof.
+    exists (fun x y => y = union_arbitrary_ens x).
+    split; try split.
+    - apply par_arbitrary_sim1.
+    - apply par_arbitrary_sim2.
+    - apply empty_union_arbitrary.
+  Qed.
+
 End Arbitrary.
