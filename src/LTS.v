@@ -10,7 +10,7 @@ Record LTS (Lbl:Set) :=
           trans : State -> Ensemble (State * Lbl);
           start : State }.
 
-Definition prefixing_lts S (X:LTS S) (a:S) : LTS S :=
+Definition prefixing_lts Lbl (X:LTS Lbl) (a:Lbl) : LTS Lbl :=
   let trans x :=
       fun '(x',a') =>
         match x with
@@ -18,12 +18,23 @@ Definition prefixing_lts S (X:LTS S) (a:S) : LTS S :=
         | Some x => maybe False (fun x' => X.(trans) x (x',a')) x' end in
   mkLTS trans None.
 
-Definition par_lts S (X:LTS S) (Y:LTS S) :=
+Definition par_lts Lbl (X:LTS Lbl) (Y:LTS Lbl) :=
   let trans '(x,y) :=
       (fun '((x',y'),a) =>
          (y=y' /\ In _ (X.(trans) x) (x',a)) \/ (x=x' /\ In _ (Y.(trans) y) (y',a))) in
   let start := (X.(start), Y.(start)) in
   mkLTS trans start.
+
+Definition trans_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) :
+  (forall i:I, State (Family i)) -> Ensemble ((forall i:I, State (Family i)) * Lbl) :=
+  fun x =>
+    fun '(x',a) =>
+      exists i, In _ (trans (Family i) (x i)) (x' i, a)
+        /\ forall j, i<>j -> (x j) = (x' j).
+
+Definition par_arbitrary_lts (Lbl I : Set) (Family : I -> LTS Lbl) : LTS Lbl :=
+  let start := fun i => start (Family i) in
+  mkLTS (trans_arbitrary Family) start.
 
 Definition Trans S (X:LTS S) p p' a : Prop := In _ (X.(trans) p) (p',a).
 

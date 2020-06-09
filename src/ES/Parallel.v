@@ -1,6 +1,8 @@
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Sets.Constructive_sets.
 
+Require Import Coq.Program.Basics.
+
 Require Import Causality.Utils.
 Require Import Causality.LTS.
 Require Import Causality.ES.Definition.
@@ -41,11 +43,9 @@ Qed.
 
 (* Parallel composition of two ES *)
 Definition par_es Lbl (E:ES Lbl) (F:ES Lbl) :=
-  let cmp := par_rel E.(cmp) F.(cmp) in
-  let cmp_order := par_order  E.(cmp_ord) F.(cmp_ord) in
-  let cfl := par_rel E.(cfl) F.(cfl) in
+  let cmp_order := par_order E.(cmp_ord) F.(cmp_ord) in
   let cfl_conflict := par_conflict E.(cfl_conflict) F.(cfl_conflict) in
-  let inherit := par_inherit  E.(inherit)  F.(inherit) in
+  let inherit := par_inherit E.(inherit)  F.(inherit) in
   let lbl := either E.(lbl) F.(lbl) in
   mkES cmp_order cfl_conflict inherit lbl.
 
@@ -169,3 +169,76 @@ Section ParallelCorrect.
   Qed.
 
 End ParallelCorrect.
+
+Require Coq.Logic.Eqdep.
+
+Section Arbitrary.
+
+  Variables I : Set.
+
+  Definition cast {T : Type} {T1 T2 : T} (H : T1 = T2) (f : T -> Type) (x : f T1) :=
+    match H with
+    | eq_refl => x end.
+
+  Definition par_arbitrary_rel (famt : I -> Type) (fam : forall i:I, relation (famt i)) : relation (sigT famt) :=
+    fun '(existT _ i x) '(existT _ j y) =>
+      exists H, fam i x (cast H famt y).
+
+  (* This require UIP *)
+  Lemma arbitrary_par_order
+        (famt : I -> Type) (fam : forall i:I, relation (famt i)) (famo : forall i, order _ (fam i)) :
+    order _ (par_arbitrary_rel fam).
+  Proof.
+    split.
+    - intros (i,x).
+      exists (eq_refl i); firstorder.
+    - intros (i,x) (j,y) (k,z) (eqij,rxy) (eqjk,ryz).
+      destruct eqij,eqjk; simpl in *.
+      exists (eq_refl k).
+      firstorder.
+    - intros (i,x) (j,y) (eqxy,rxy) (eqyx,ry).
+      destruct eqyx; simpl in *.
+      rewrite (Eqdep.EqdepTheory.UIP_refl _ _ eqxy) in rxy.
+      assert (x=y) by firstorder.
+      now rewrite H.
+  Qed.
+
+  (* This require UIP *)
+  Lemma arbitrary_par_conflict
+        (famt : I -> Type) (fam : forall i:I, relation (famt i)) (famc : forall i, conflict _ (fam i)) :
+    conflict _ (par_arbitrary_rel fam).
+  Proof.
+    split.
+    - intros (i,x) (j,y) (eqij,rxy).
+      destruct eqij; exists (eq_refl j); firstorder.
+    - intros (i,x) (eqij,rxy).
+      rewrite (Eqdep.EqdepTheory.UIP_refl _ _ eqij) in rxy.
+      firstorder.
+  Qed.
+
+  Lemma arbitrary_par_inherit
+        (famt : I -> Type) (famo famc : forall i:I, relation (famt i))
+        (famoo : forall i, order _ (famo i)) (famcc : forall i, conflict _ (famc i))
+        (famii: forall i, conflict_inherit (famo i) (famc i))
+    :
+    conflict_inherit (par_arbitrary_rel famo) (par_arbitrary_rel famc).
+  Proof.
+    intros (i,x) (j,y) (k,z) (eqij,rxy) (eqjk,ryz).
+    destruct eqij, eqjk.
+    exists (eq_refl k); firstorder.
+  Qed.
+
+  Definition arbitrary_par_es (Lbl:Set) (Family: I -> ES Lbl) : ES Lbl :=
+    let famo i := cmp_ord (Family i) in
+    let famc i := cfl_conflict (Family i) in
+    let fami i := inherit (Family i) in
+    let cmp_order := arbitrary_par_order _ _ famo in
+    let cfl_conflict := arbitrary_par_conflict _ _ famc in
+    let inherit := arbitrary_par_inherit _ _ famo famc fami in
+    let lbl := fun '(existT _ i x) => lbl (Family i) x in
+    mkES cmp_order cfl_conflict inherit lbl.
+
+  Theorem par_arbitrary_bisim (Lbl:Set) (Family: I -> ES Lbl) :
+    Bisimilar (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family)).
+  Admitted.
+End Arbitrary.

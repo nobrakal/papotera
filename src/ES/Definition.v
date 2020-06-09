@@ -15,7 +15,7 @@ Definition conflict_inherit {A} (cmp cfl : relation A) :=
 Set Implicit Arguments.
 
 Record ES (Lbl : Set) :=
-  mkES { Event: Set;
+  mkES { Event: Type;
          cmp : relation Event; cmp_ord : order Event cmp;
          cfl : relation Event; cfl_conflict : conflict Event cfl;
          inherit : conflict_inherit cmp cfl;
@@ -31,6 +31,20 @@ Definition conflict_free a (cfl : relation a) (X: Ensemble a) :=
 
 Definition Configuration (S:Set) (E: ES S) x := downclosed E.(cmp) x /\ conflict_free E.(cfl) x.
 
+(* ProofIrrelevance will be used to prove the equality of two sig negleting the equality of the proof. *)
+Require Coq.Logic.ProofIrrelevance.
+
+Lemma specif_eq' A (P:A -> Prop) (x y : A) (px: P x) (py: P y) : x = y -> exist P x px = exist P y py.
+Proof.
+  intros exy.
+  apply eq_sig_hprop.
+  - intros z; apply Coq.Logic.ProofIrrelevance.proof_irrelevance.
+  - easy.
+Qed.
+
+Lemma specif_eq A (P:A->Prop) (x:sig P) (y:sig P) : proj1_sig x = proj1_sig y -> x = y.
+Proof. destruct x as (x,hx), y as (y,hy); apply specif_eq'. Qed.
+
 Lemma empty (Lbl:Set) (E:ES Lbl) : sig (Configuration E).
 Proof.
   split with (x:=Empty_set _).
@@ -45,17 +59,3 @@ Definition lts_of_es (Lbl:Set) (E:ES Lbl) : LTS Lbl :=
         let x' := proj1_sig c in
         exists e, (x'=Add _ x e /\ Configuration E (Add _ x e) /\ not (In _ x e) /\ E.(lbl) e = a) in
   mkLTS t (empty _).
-
-(* ProofIrrelevance will be used to prove the equality of two sig negleting the equality of the proof. *)
-Require Coq.Logic.ProofIrrelevance.
-
-Lemma specif_eq' A (P:A -> Prop) (x y : A) (px: P x) (py: P y) : x = y -> exist P x px = exist P y py.
-Proof.
-  intros exy.
-  apply eq_sig_hprop.
-  - intros z; apply Coq.Logic.ProofIrrelevance.proof_irrelevance.
-  - easy.
-Qed.
-
-Lemma specif_eq A (P:A->Prop) (x:sig P) (y:sig P) : proj1_sig x = proj1_sig y -> x = y.
-Proof. destruct x as (x,hx), y as (y,hy); apply specif_eq'. Qed.
