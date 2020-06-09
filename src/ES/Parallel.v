@@ -3,6 +3,8 @@ Require Import Coq.Sets.Constructive_sets.
 
 Require Import Coq.Program.Basics.
 
+Require Import Coq.Classes.EquivDec.
+
 Require Import Causality.Utils.
 Require Import Causality.LTS.
 Require Import Causality.ES.Definition.
@@ -257,13 +259,33 @@ Section Arbitrary.
       firstorder.
   Defined.
 
-  Lemma par_arbitrary_sim1 :
+  (* This need decidable equality over I *)
+  Lemma par_arbitrary_sim1 `{EqDec I eq} :
     Simulation (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family))
                (fun x y => y=union_arbitrary_ens x).
   Proof.
     intros p q rpq p' a tpp'.
     exists (union_arbitrary_ens p'); intuition.
-    destruct tpp' as (i,[H1 H2]).
+    destruct tpp' as (i,((H1,(H2,(H3,H4))),H5)).
+    exists (existT _ i H1); rewrite rpq; intuition.
+    - apply Extensionality_Ensembles; simpl; split; intros (j,Ej) jx; unfold In in jx.
+      + destruct (H i j).
+        * destruct e.
+          rewrite H2 in jx.
+          apply Add_inv in jx.
+          destruct jx; intuition.
+          rewrite H4; intuition.
+        * apply Add_intro1.
+          apply H5 in c.
+          rewrite <- c in jx; intuition.
+      + apply Add_inv in jx.
+        destruct (H i j).
+        * destruct e.
+          destruct jx; unfold In; rewrite H2.
+          -- apply Add_intro1; intuition.
+          -- admit.
+        * admit.
+    - admit.
   Admitted.
 
   Lemma par_arbitrary_sim2 :
