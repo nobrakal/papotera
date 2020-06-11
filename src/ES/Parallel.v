@@ -172,23 +172,26 @@ Section ParallelCorrect.
 
 End ParallelCorrect.
 
-Require Coq.Logic.Eqdep.
+Require Import Coq.Logic.Eqdep_dec.
 
-Section Arbitrary.
+Module ArbitraryParallel(M:DecidableSet).
 
-  Variables I : Set.
+  Module DEqDep := DecidableEqDepSet(M).
+
+  Import M.
 
   Definition cast {T : Type} {T1 T2 : T} (H : T1 = T2) (f : T -> Type) (x : f T1) :=
     match H with
     | eq_refl => x end.
 
-  Definition par_arbitrary_rel (famt : I -> Type) (fam : forall i:I, relation (famt i)) : relation (sigT famt) :=
+  Definition par_arbitrary_rel I (famt : I -> Type) (fam : forall i, relation (famt i)) : relation (sigT famt) :=
     fun '(existT _ i x) '(existT _ j y) =>
       exists H, fam i x (cast H famt y).
 
-  (* This require UIP *)
+  (* This proof requires UIP but in the theorem, we need decidable equality over I,
+     so we just require Decidable equality here to get UIP without any axiom *)
   Lemma arbitrary_par_order
-        (famt : I -> Type) (fam : forall i:I, relation (famt i)) (famo : forall i, order _ (fam i)) :
+        (famt : U -> Type) (fam : forall u:U, relation (famt u)) (famo : forall u, order _ (fam u)) :
     order _ (par_arbitrary_rel fam).
   Proof.
     split.
@@ -207,7 +210,7 @@ Section Arbitrary.
 
   (* This require UIP *)
   Lemma arbitrary_par_conflict
-        (famt : I -> Type) (fam : forall i:I, relation (famt i)) (famc : forall i, conflict _ (fam i)) :
+        (famt : U -> Type) (fam : forall u:U, relation (famt u)) (famc : forall u, conflict _ (fam u)) :
     conflict _ (par_arbitrary_rel fam).
   Proof.
     split.
@@ -218,7 +221,7 @@ Section Arbitrary.
       firstorder.
   Qed.
 
-  Lemma arbitrary_par_inherit
+  Lemma arbitrary_par_inherit I
         (famt : I -> Type) (famo famc : forall i:I, relation (famt i))
         (famoo : forall i, order _ (famo i)) (famcc : forall i, conflict _ (famc i))
         (famii: forall i, conflict_inherit (famo i) (famc i))
@@ -230,7 +233,7 @@ Section Arbitrary.
     exists (eq_refl k); firstorder.
   Qed.
 
-  Definition arbitrary_par_es (Lbl:Set) (Family: I -> ES Lbl) : ES Lbl :=
+  Definition arbitrary_par_es (Lbl:Set) (Family: U -> ES Lbl) : ES Lbl :=
     let famo i := cmp_ord (Family i) in
     let famc i := cfl_conflict (Family i) in
     let fami i := inherit (Family i) in
@@ -240,75 +243,87 @@ Section Arbitrary.
     let lbl := fun '(existT _ i x) => lbl (Family i) x in
     mkES cmp_order cfl_conflict inherit lbl.
 
-  Variables (Lbl:Set) (Family : I -> ES Lbl).
+  Section WithFamily.
+    Variables (Lbl:Set) (Family : U -> ES Lbl).
 
-  Definition union_arbitrary_ens (X:forall i:I, sig (Configuration (Family i))) :
-    sig (Configuration (arbitrary_par_es Family)).
-  Proof.
-    split with (x:=fun '(existT _ i x) => In _ (proj1_sig (X i)) x).
-    split.
-    - intros (i,x) ix (j,y) (H,cxy).
-      destruct H.
-      unfold In in *.
-      destruct (X i) as (Xi,HXi); simpl in *.
-      firstorder.
-    - intros (i,x) (j,y) ix iy (H,cxy).
-      destruct H.
-      unfold In in *.
-      destruct (X j) as (Xi,HXi); simpl in *.
-      firstorder.
-  Defined.
+    Definition union_arbitrary_ens (X:forall u:U, sig (Configuration (Family u))) :
+      sig (Configuration (arbitrary_par_es Family)).
+    Proof.
+      split with (x:=fun '(existT _ i x) => In _ (proj1_sig (X i)) x).
+      split.
+      - intros (i,x) ix (j,y) (H,cxy).
+        destruct H.
+        unfold In in *.
+        destruct (X i) as (Xi,HXi); simpl in *.
+        firstorder.
+      - intros (i,x) (j,y) ix iy (H,cxy).
+        destruct H.
+        unfold In in *.
+        destruct (X j) as (Xi,HXi); simpl in *.
+        firstorder.
+    Defined.
 
-  (* This need decidable equality over I *)
-  Lemma par_arbitrary_sim1 `{EqDec I eq} :
-    Simulation (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family))
-               (fun x y => y=union_arbitrary_ens x).
-  Proof.
-    intros p q rpq p' a tpp'.
-    exists (union_arbitrary_ens p'); intuition.
-    destruct tpp' as (i,((H1,(H2,(H3,H4))),H5)).
-    exists (existT _ i H1); rewrite rpq; intuition.
-    - apply Extensionality_Ensembles; simpl; split; intros (j,Ej) jx; unfold In in jx.
-      + destruct (H i j).
-        * destruct e.
-          rewrite H2 in jx.
-          apply Add_inv in jx.
-          destruct jx; intuition.
-          rewrite H4; intuition.
-        * apply Add_intro1.
-          apply H5 in c.
-          rewrite <- c in jx; intuition.
-      + apply Add_inv in jx.
-        destruct (H i j).
-        * destruct e.
-          destruct jx; unfold In; rewrite H2.
-          -- apply Add_intro1; intuition.
-          -- admit.
-        * admit.
-    - admit.
-  Admitted.
+    (* This need decidable equality over I *)
+    Lemma par_arbitrary_sim1 :
+      Simulation (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family))
+                 (fun x y => y=union_arbitrary_ens x).
+    Proof.
+      intros p q rpq p' a tpp'.
+      exists (union_arbitrary_ens p'); intuition.
+      destruct tpp' as (i,((H1,(H2,(H3,H4))),H5)).
+      exists (existT _ i H1); rewrite rpq; intuition.
+      - apply Extensionality_Ensembles; simpl; split; intros (j,Ej) jx; unfold In in jx.
+        + destruct (eq_dec i j).
+          * destruct e.
+            rewrite H2 in jx.
+            apply Add_inv in jx.
+            destruct jx; intuition.
+            rewrite H4; intuition.
+          * apply Add_intro1.
+            apply H5 in n.
+            rewrite <- n in jx; intuition.
+        + apply Add_inv in jx.
+          destruct (eq_dec i j).
+          * destruct e.
+            destruct jx; unfold In; rewrite H2.
+            -- apply Add_intro1; intuition.
+            -- apply DEqDep.inj_pair2 in H4.
+               rewrite H4; now apply Add_intro2.
+          * generalize n; intros n'.
+            apply H5 in n; unfold In; rewrite <- n; intuition.
+            apply projT1_eq in H4; intuition.
+      - destruct H3 as (D,C).
+        split.
+        + intros (j,x) ix (k,z) (E,cxy).
+          destruct E; simpl in *.
+          apply Add_inv in ix.
+          admit.
+        + intros x y ix iy cxy.
+    Admitted.
 
-  Lemma par_arbitrary_sim2 :
-    Simulation (lts_of_es (arbitrary_par_es Family)) (par_arbitrary_lts (compose (@lts_of_es Lbl) Family))
-               (fun y x => y=union_arbitrary_ens x).
-  Proof.
-  Admitted.
+    Lemma par_arbitrary_sim2 :
+      Simulation (lts_of_es (arbitrary_par_es Family)) (par_arbitrary_lts (compose (@lts_of_es Lbl) Family))
+                 (fun y x => y=union_arbitrary_ens x).
+    Proof.
+    Admitted.
 
-  Lemma empty_union_arbitrary :
-    empty (arbitrary_par_es Family) = union_arbitrary_ens (fun i : I => empty (Family i)).
-  Proof.
-    apply specif_eq, Extensionality_Ensembles; simpl.
-    split; [intros i ix | intros (H,i) ix]; now apply Noone_in_empty in ix.
-  Qed.
+    Lemma empty_union_arbitrary :
+      empty (arbitrary_par_es Family) = union_arbitrary_ens (fun u : U => empty (Family u)).
+    Proof.
+      apply specif_eq, Extensionality_Ensembles; simpl.
+      split; [intros i ix | intros (H,i) ix]; now apply Noone_in_empty in ix.
+    Qed.
 
-  Theorem par_arbitrary_bisim :
-    Bisimilar (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family)).
-  Proof.
-    exists (fun x y => y = union_arbitrary_ens x).
-    split; try split.
-    - apply par_arbitrary_sim1.
-    - apply par_arbitrary_sim2.
-    - apply empty_union_arbitrary.
-  Qed.
+    Theorem par_arbitrary_bisim :
+      Bisimilar (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family)).
+    Proof.
+      exists (fun x y => y = union_arbitrary_ens x).
+      split; try split.
+      - apply par_arbitrary_sim1.
+      - apply par_arbitrary_sim2.
+      - apply empty_union_arbitrary.
+    Qed.
 
-End Arbitrary.
+  End WithFamily.
+
+End ArbitraryParallel.
