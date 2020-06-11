@@ -263,6 +263,44 @@ Module ArbitraryParallel(M:DecidableSet).
         firstorder.
     Defined.
 
+    Definition split_arbitrary_ens (X:sig (Configuration (arbitrary_par_es Family))) :
+      forall u:U, sig (Configuration (Family u)).
+    Proof.
+      intro u.
+      split with (x:=fun (x:Event (Family u)) => In _ (proj1_sig X) ((existT _ u x)) ).
+      destruct X as (X,(D,C)).
+      split.
+      - intros x ix y cxy.
+        simpl in *.
+        unfold downclosed in D.
+        specialize D with
+            (existT (fun u => Event (Family u)) u x) (existT (fun u => Event (Family u)) u y).
+        apply D; intuition.
+        exists (eq_refl u); intuition.
+      - intros x y ix iy cxy.
+        simpl in *.
+        unfold conflict_free in C.
+        specialize C with
+            (existT (fun u => Event (Family u)) u x) (existT (fun u => Event (Family u)) u y).
+        apply C; intuition.
+        exists (eq_refl u); intuition.
+    Defined.
+
+    Lemma union_split_arbitrary (X:sig (Configuration (arbitrary_par_es Family))) :
+      union_arbitrary_ens (split_arbitrary_ens X) = X.
+    Proof.
+      destruct X as (X,HX).
+      apply specif_eq; simpl; apply Extensionality_Ensembles.
+      split; intros (i,x) ix; unfold In in *; intuition.
+    Qed.
+
+     Lemma split_union_arbitrary (X:forall u:U, sig (Configuration (Family u))) u :
+      split_arbitrary_ens (union_arbitrary_ens X) u = X u.
+    Proof.
+      apply specif_eq; simpl; apply Extensionality_Ensembles;
+        split; intros x ix; unfold In in *; intuition.
+    Qed.
+
     (* This need decidable equality over I *)
     Lemma par_arbitrary_sim1 :
       Simulation (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family))
@@ -332,6 +370,52 @@ Module ArbitraryParallel(M:DecidableSet).
       Simulation (lts_of_es (arbitrary_par_es Family)) (par_arbitrary_lts (compose (@lts_of_es Lbl) Family))
                  (fun y x => y=union_arbitrary_ens x).
     Proof.
+      intros p q rpq p' a tpp'.
+      exists (split_arbitrary_ens p').
+      rewrite union_split_arbitrary; intuition.
+      simpl in *.
+      destruct tpp' as ((i,e),(H1,(H2,(H3,H4)))).
+      exists i; intuition.
+      - assert (q i = split_arbitrary_ens p i) by now rewrite rpq, split_union_arbitrary.
+        rewrite H in *.
+        unfold In in *.
+        exists e; intuition.
+        + admit.
+        + destruct H2 as (D,C).
+          destruct (proj2_sig (split_arbitrary_ens p i)) as (DP,CP).
+          split.
+          * intros x ix y cxy.
+            apply Add_inv in ix.
+            destruct ix.
+            -- now apply Add_intro1,DP with x.
+            -- admit.
+          * intros x y ix iy cxy.
+            apply Add_inv in ix; apply Add_inv in iy.
+            pose (x' := (existT (fun i : U => Event (Family i)) i x)).
+            pose (y' := (existT (fun i : U => Event (Family i)) i y)).
+            destruct ix,iy.
+            -- unfold conflict_free,not in CP; now apply CP with x y.
+            -- unfold conflict_free,not in C.
+               rewrite H2 in *.
+               apply C with x' y'; intuition.
+               exists (eq_refl i); intuition.
+            -- unfold conflict_free,not in C.
+               rewrite H0 in *.
+               apply C with x' y'; intuition.
+               exists (eq_refl i); intuition.
+            -- unfold conflict_free,not in C.
+               rewrite H0 in *.
+               apply C with x' y'; intuition.
+               rewrite H2; intuition.
+               exists (eq_refl i); intuition.
+      - apply specif_eq.
+        apply (f_equal split_arbitrary_ens) in rpq.
+        assert (q j = split_arbitrary_ens p j) by now rewrite rpq, split_union_arbitrary.
+        rewrite H0;simpl;rewrite H1.
+        apply Extensionality_Ensembles; split; intros x ix.
+        + apply Add_intro1; intuition.
+        + apply Add_inv in ix.
+          destruct ix; try apply projT1_eq in H5; intuition.
     Admitted.
 
     Lemma empty_union_arbitrary :
