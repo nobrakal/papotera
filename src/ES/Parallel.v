@@ -292,14 +292,41 @@ Module ArbitraryParallel(M:DecidableSet).
           * generalize n; intros n'.
             apply H5 in n; unfold In; rewrite <- n; intuition.
             apply projT1_eq in H4; intuition.
-      - destruct H3 as (D,C).
+      - destruct (proj2_sig (union_arbitrary_ens p)) as (DP,CP).
+        destruct H3 as (D,C).
         split.
-        + intros (j,x) ix (k,z) (E,cxy).
-          destruct E; simpl in *.
+        + intros x ix z cxz.
           apply Add_inv in ix.
-          admit.
+          unfold downclosed in *.
+          destruct ix.
+          * specialize DP with x z.
+            apply Add_intro1,DP; intuition.
+          * destruct x as (j,x), z as (k,z), cxz as (E,cxz); destruct E.
+            generalize H3; intro H3'.
+            apply projT1_eq in H3; simpl in H3; destruct H3; apply DEqDep.inj_pairT2 in H3'.
+            unfold downclosed in D.
+            specialize D with x z.
+            rewrite H3' in *.
+            assert (In (Event (Family i)) (Add (Event (Family i)) (proj1_sig (p i)) x) z) by intuition.
+            apply Add_inv in H3; destruct H3.
+            -- apply Add_intro1; intuition.
+            -- rewrite H3; intuition.
         + intros x y ix iy cxy.
-    Admitted.
+          unfold conflict_free in *.
+          apply Add_inv in ix; apply Add_inv in iy.
+          destruct ix,iy.
+          1: specialize CP with x y; now apply CP.
+          all:destruct x as (j,x), y as (k,y), cxy as (E,cxy); destruct E.
+          2-3: generalize H3; intros H3';
+               apply projT1_eq in H3; simpl in H3; destruct H3; apply DEqDep.inj_pairT2 in H3';
+                 rewrite H3' in *.
+          1-3:generalize H4; intros H4'.
+          1:apply projT1_eq in H4; simpl in H4; destruct H4; apply DEqDep.inj_pairT2 in H4'; rewrite H4' in *.
+          3:apply projT1_eq in H4; simpl in H4; destruct H4; apply DEqDep.inj_pairT2 in H4'.
+          1-2:specialize C with x y; apply C; intuition.
+          specialize C with x y; apply C; intuition.
+          rewrite H4'; intuition.
+    Qed.
 
     Lemma par_arbitrary_sim2 :
       Simulation (lts_of_es (arbitrary_par_es Family)) (par_arbitrary_lts (compose (@lts_of_es Lbl) Family))
