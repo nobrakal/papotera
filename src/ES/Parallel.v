@@ -380,7 +380,17 @@ Module ArbitraryParallel(M:DecidableSet).
         rewrite H in *.
         unfold In in *.
         exists e; intuition.
-        + admit.
+        + apply Extensionality_Ensembles; simpl; split; intros x ix.
+          * unfold In in ix.
+            rewrite H1 in ix.
+            apply Add_inv in ix.
+            destruct ix; intuition.
+            apply DEqDep.inj_pairT2 in H0; rewrite H0; intuition.
+          * unfold In; rewrite H1.
+            apply Add_inv in ix.
+            destruct ix; intuition.
+            -- apply Add_intro1; intuition.
+            -- rewrite H0;apply Add_intro2.
         + destruct H2 as (D,C).
           destruct (proj2_sig (split_arbitrary_ens p i)) as (DP,CP).
           split.
@@ -388,7 +398,18 @@ Module ArbitraryParallel(M:DecidableSet).
             apply Add_inv in ix.
             destruct ix.
             -- now apply Add_intro1,DP with x.
-            -- admit.
+            -- rewrite H0 in *.
+               pose (x' := (existT (fun i : U => Event (Family i)) i x)).
+               pose (y' := (existT (fun i : U => Event (Family i)) i y)).
+               unfold downclosed in D.
+               specialize D with x' y'.
+               assert (
+                   In _ (Add _ (proj1_sig p) (existT (fun i : U => Event (Family i)) i x)) y').
+               ++ apply D; intuition.
+                  exists (eq_refl i); intuition.
+               ++ apply Add_inv in H2.
+                  destruct H2; intuition.
+                  apply DEqDep.inj_pairT2 in H2; rewrite H2; intuition.
           * intros x y ix iy cxy.
             apply Add_inv in ix; apply Add_inv in iy.
             pose (x' := (existT (fun i : U => Event (Family i)) i x)).
@@ -416,7 +437,7 @@ Module ArbitraryParallel(M:DecidableSet).
         + apply Add_intro1; intuition.
         + apply Add_inv in ix.
           destruct ix; try apply projT1_eq in H5; intuition.
-    Admitted.
+    Qed.
 
     Lemma empty_union_arbitrary :
       empty (arbitrary_par_es Family) = union_arbitrary_ens (fun u : U => empty (Family u)).
