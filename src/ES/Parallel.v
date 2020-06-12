@@ -301,6 +301,48 @@ Module ArbitraryParallel(M:DecidableSet).
         split; intros x ix; unfold In in *; intuition.
     Qed.
 
+    Lemma config_sim1 p i e:
+          Configuration (Family i) (Add _ (proj1_sig (p i)) e) ->
+          Configuration (arbitrary_par_es Family)
+                        (Add _ (proj1_sig (union_arbitrary_ens p))
+                             (existT (fun i0 : U => Event (Family i0)) i e)).
+    Proof.
+      intros H3.
+      destruct (proj2_sig (union_arbitrary_ens p)) as (DP,CP).
+      destruct H3 as (D,C).
+      split.
+      + intros x ix z cxz.
+        apply Add_inv in ix.
+        unfold downclosed in *.
+        destruct ix.
+        * specialize DP with x z.
+          apply Add_intro1,DP; intuition.
+        * destruct x as (j,x), z as (k,z), cxz as (E,cxz); destruct E.
+          generalize H; intro H'.
+          apply projT1_eq in H; simpl in H; destruct H; apply DEqDep.inj_pairT2 in H'.
+          unfold downclosed in D.
+          specialize D with x z.
+          rewrite H' in *.
+          assert (In (Event (Family i)) (Add (Event (Family i)) (proj1_sig (p i)) x) z) by intuition.
+          apply Add_inv in H; destruct H.
+          -- apply Add_intro1; intuition.
+          -- rewrite H; intuition.
+      + intros x y ix iy cxy.
+        unfold conflict_free in *.
+        apply Add_inv in ix; apply Add_inv in iy.
+        destruct ix as [HX|HX],iy as [HY|HY].
+        1: specialize CP with x y; now apply CP.
+        all:destruct x as (j,x), y as (k,y), cxy as (E,cxy); destruct E.
+        2-3: generalize HX; intros HX';
+          apply projT1_eq in HX; simpl in HX; destruct HX; apply DEqDep.inj_pairT2 in HX';
+            rewrite HX' in *.
+        1,3: generalize HY; intros HY';
+          apply projT1_eq in HY; simpl in HY; destruct HY; apply DEqDep.inj_pairT2 in HY';
+            rewrite HY' in *.
+        all:specialize C with x y; apply C; intuition;
+          rewrite HY'; intuition.
+    Qed.
+
     (* This need decidable equality over I *)
     Lemma par_arbitrary_sim1 :
       Simulation (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family))
@@ -330,40 +372,48 @@ Module ArbitraryParallel(M:DecidableSet).
           * generalize n; intros n'.
             apply H5 in n; unfold In; rewrite <- n; intuition.
             apply projT1_eq in H4; intuition.
-      - destruct (proj2_sig (union_arbitrary_ens p)) as (DP,CP).
-        destruct H3 as (D,C).
-        split.
-        + intros x ix z cxz.
-          apply Add_inv in ix.
-          unfold downclosed in *.
-          destruct ix.
-          * specialize DP with x z.
-            apply Add_intro1,DP; intuition.
-          * destruct x as (j,x), z as (k,z), cxz as (E,cxz); destruct E.
-            generalize H3; intro H3'.
-            apply projT1_eq in H3; simpl in H3; destruct H3; apply DEqDep.inj_pairT2 in H3'.
-            unfold downclosed in D.
-            specialize D with x z.
-            rewrite H3' in *.
-            assert (In (Event (Family i)) (Add (Event (Family i)) (proj1_sig (p i)) x) z) by intuition.
-            apply Add_inv in H3; destruct H3.
-            -- apply Add_intro1; intuition.
-            -- rewrite H3; intuition.
-        + intros x y ix iy cxy.
-          unfold conflict_free in *.
-          apply Add_inv in ix; apply Add_inv in iy.
-          destruct ix,iy.
-          1: specialize CP with x y; now apply CP.
-          all:destruct x as (j,x), y as (k,y), cxy as (E,cxy); destruct E.
-          2-3: generalize H3; intros H3';
-               apply projT1_eq in H3; simpl in H3; destruct H3; apply DEqDep.inj_pairT2 in H3';
-                 rewrite H3' in *.
-          1-3:generalize H4; intros H4'.
-          1:apply projT1_eq in H4; simpl in H4; destruct H4; apply DEqDep.inj_pairT2 in H4'; rewrite H4' in *.
-          3:apply projT1_eq in H4; simpl in H4; destruct H4; apply DEqDep.inj_pairT2 in H4'.
-          1-2:specialize C with x y; apply C; intuition.
-          specialize C with x y; apply C; intuition.
-          rewrite H4'; intuition.
+      - now apply config_sim1.
+    Qed.
+
+    Definition EventsOf i := Event (Family i).
+
+    Lemma config_sim2 p i e :
+      Configuration (arbitrary_par_es Family)
+                    (Add _ (proj1_sig p) (existT EventsOf i e))
+      -> Configuration (Family i) (Add _ (proj1_sig (split_arbitrary_ens p i)) e).
+    Proof.
+      intros H2.
+      destruct H2 as (D,C).
+      destruct (proj2_sig (split_arbitrary_ens p i)) as (DP,CP).
+      split.
+      - intros x ix y cxy.
+        apply Add_inv in ix.
+        destruct ix.
+        + now apply Add_intro1,DP with x.
+        + rewrite H in *.
+           pose (x' := (existT EventsOf i x)).
+           pose (y' := (existT EventsOf i y)).
+           assert (In _ (Add _ (proj1_sig p) (existT EventsOf i x)) y').
+           * unfold downclosed in D; apply D with x'; intuition.
+              exists (eq_refl i); intuition.
+           * apply Add_inv in H0.
+              destruct H0; intuition.
+              apply DEqDep.inj_pairT2 in H0; rewrite H0; intuition.
+     - intros x y ix iy cxy.
+        apply Add_inv in ix; apply Add_inv in iy.
+        pose (x' := (existT EventsOf i x)).
+        pose (y' := (existT EventsOf i y)).
+        unfold conflict_free,not in C.
+        destruct ix,iy.
+        1:now apply CP with x y.
+        1:rewrite H0 in *.
+        2:rewrite H in *.
+        1-2:apply C with x' y'; intuition;
+          exists (eq_refl i); intuition.
+        rewrite H0 in *.
+        apply C with x' y'; intuition.
+        rewrite H; intuition.
+        exists (eq_refl i); intuition.
     Qed.
 
     Lemma par_arbitrary_sim2 :
@@ -391,44 +441,7 @@ Module ArbitraryParallel(M:DecidableSet).
             destruct ix; intuition.
             -- apply Add_intro1; intuition.
             -- rewrite H0;apply Add_intro2.
-        + destruct H2 as (D,C).
-          destruct (proj2_sig (split_arbitrary_ens p i)) as (DP,CP).
-          split.
-          * intros x ix y cxy.
-            apply Add_inv in ix.
-            destruct ix.
-            -- now apply Add_intro1,DP with x.
-            -- rewrite H0 in *.
-               pose (x' := (existT (fun i : U => Event (Family i)) i x)).
-               pose (y' := (existT (fun i : U => Event (Family i)) i y)).
-               unfold downclosed in D.
-               specialize D with x' y'.
-               assert (
-                   In _ (Add _ (proj1_sig p) (existT (fun i : U => Event (Family i)) i x)) y').
-               ++ apply D; intuition.
-                  exists (eq_refl i); intuition.
-               ++ apply Add_inv in H2.
-                  destruct H2; intuition.
-                  apply DEqDep.inj_pairT2 in H2; rewrite H2; intuition.
-          * intros x y ix iy cxy.
-            apply Add_inv in ix; apply Add_inv in iy.
-            pose (x' := (existT (fun i : U => Event (Family i)) i x)).
-            pose (y' := (existT (fun i : U => Event (Family i)) i y)).
-            destruct ix,iy.
-            -- unfold conflict_free,not in CP; now apply CP with x y.
-            -- unfold conflict_free,not in C.
-               rewrite H2 in *.
-               apply C with x' y'; intuition.
-               exists (eq_refl i); intuition.
-            -- unfold conflict_free,not in C.
-               rewrite H0 in *.
-               apply C with x' y'; intuition.
-               exists (eq_refl i); intuition.
-            -- unfold conflict_free,not in C.
-               rewrite H0 in *.
-               apply C with x' y'; intuition.
-               rewrite H2; intuition.
-               exists (eq_refl i); intuition.
+        + now apply config_sim2.
       - apply specif_eq.
         apply (f_equal split_arbitrary_ens) in rpq.
         assert (q j = split_arbitrary_ens p j) by now rewrite rpq, split_union_arbitrary.
