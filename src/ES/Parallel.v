@@ -180,10 +180,6 @@ Module ArbitraryParallel(M:DecidableSet).
 
   Import M.
 
-  Definition cast {T : Type} {T1 T2 : T} (H : T1 = T2) (f : T -> Type) (x : f T1) :=
-    match H with
-    | eq_refl => x end.
-
   Definition par_arbitrary_rel I (famt : I -> Type) (fam : forall i, relation (famt i)) : relation (sigT famt) :=
     fun '(existT _ i x) '(existT _ j y) =>
       exists H, fam i x (cast H famt y).

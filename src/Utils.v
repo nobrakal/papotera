@@ -104,3 +104,7 @@ Proof.
   1,3:injection H as h; rewrite h; apply Add_intro2.
   all:rewrite H; now apply Union_intror.
 Qed.
+
+Definition cast {T : Type} {T1 T2 : T} (H : T1 = T2) (f : T -> Type) (x : f T1) :=
+    match H with
+    | eq_refl => x end.

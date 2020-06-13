@@ -25,7 +25,7 @@ Definition par_lts Lbl (X:LTS Lbl) (Y:LTS Lbl) :=
   let start := (X.(start), Y.(start)) in
   mkLTS trans start.
 
-Definition trans_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) :
+Definition trans_par_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) :
   (forall i:I, State (Family i)) -> Ensemble ((forall i:I, State (Family i)) * Lbl) :=
   fun x =>
     fun '(x',a) =>
@@ -34,7 +34,27 @@ Definition trans_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) :
 
 Definition par_arbitrary_lts (Lbl I : Set) (Family : I -> LTS Lbl) : LTS Lbl :=
   let start := fun i => start (Family i) in
-  mkLTS (trans_arbitrary Family) start.
+  mkLTS (trans_par_arbitrary Family) start.
+
+Definition StateOf (Lbl I:Set) (Family : I -> LTS Lbl) := fun i => State (Family i).
+
+Definition trans_sum_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) :
+  (option (sigT (StateOf Family))) -> Ensemble (option (sigT (StateOf Family)) * Lbl) :=
+  fun x =>
+    fun '(x',a) =>
+      match x' with
+      | None => False
+      | Some (existT _ j x') =>
+        match x with
+        | None =>
+          In _ (trans (Family j) (start (Family j))) (x',a)
+        | Some (existT _ i x) =>
+          exists (H:j=i),
+          In _ (trans (Family i) x) (cast H (StateOf Family) x',a) end
+      end.
+
+Definition sum_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) : LTS Lbl :=
+  mkLTS (@trans_sum_arbitrary _ _ Family) None.
 
 Definition Trans S (X:LTS S) p p' a : Prop := In _ (X.(trans) p) (p',a).
 
