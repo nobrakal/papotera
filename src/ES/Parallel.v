@@ -186,7 +186,7 @@ Module ArbitraryParallel(M:DecidableSet).
 
   (* This proof requires UIP but in the theorem, we need decidable equality over I,
      so we just require Decidable equality here to get UIP without any axiom *)
-  Lemma arbitrary_par_order
+  Lemma par_arbitrary_order
         (famt : U -> Type) (fam : forall u:U, relation (famt u)) (famo : forall u, order _ (fam u)) :
     order _ (par_arbitrary_rel fam).
   Proof.
@@ -205,7 +205,7 @@ Module ArbitraryParallel(M:DecidableSet).
   Qed.
 
   (* This require UIP *)
-  Lemma arbitrary_par_conflict
+  Lemma par_arbitrary_conflict
         (famt : U -> Type) (fam : forall u:U, relation (famt u)) (famc : forall u, conflict _ (fam u)) :
     conflict _ (par_arbitrary_rel fam).
   Proof.
@@ -217,7 +217,7 @@ Module ArbitraryParallel(M:DecidableSet).
       firstorder.
   Qed.
 
-  Lemma arbitrary_par_inherit I
+  Lemma par_arbitrary_inherit I
         (famt : I -> Type) (famo famc : forall i:I, relation (famt i))
         (famoo : forall i, order _ (famo i)) (famcc : forall i, conflict _ (famc i))
         (famii: forall i, conflict_inherit (famo i) (famc i))
@@ -229,13 +229,13 @@ Module ArbitraryParallel(M:DecidableSet).
     exists (eq_refl k); firstorder.
   Qed.
 
-  Definition arbitrary_par_es (Lbl:Set) (Family: U -> ES Lbl) : ES Lbl :=
+  Definition par_arbitrary_es (Lbl:Set) (Family: U -> ES Lbl) : ES Lbl :=
     let famo i := cmp_ord (Family i) in
     let famc i := cfl_conflict (Family i) in
     let fami i := inherit (Family i) in
-    let cmp_order := arbitrary_par_order _ _ famo in
-    let cfl_conflict := arbitrary_par_conflict _ _ famc in
-    let inherit := arbitrary_par_inherit _ _ famo famc fami in
+    let cmp_order := par_arbitrary_order _ _ famo in
+    let cfl_conflict := par_arbitrary_conflict _ _ famc in
+    let inherit := par_arbitrary_inherit _ _ famo famc fami in
     let lbl := fun '(existT _ i x) => lbl (Family i) x in
     mkES cmp_order cfl_conflict inherit lbl.
 
@@ -243,7 +243,7 @@ Module ArbitraryParallel(M:DecidableSet).
     Variables (Lbl:Set) (Family : U -> ES Lbl).
 
     Definition union_arbitrary_ens (X:forall u:U, sig (Configuration (Family u))) :
-      sig (Configuration (arbitrary_par_es Family)).
+      sig (Configuration (par_arbitrary_es Family)).
     Proof.
       split with (x:=fun '(existT _ i x) => In _ (proj1_sig (X i)) x).
       split.
@@ -259,7 +259,7 @@ Module ArbitraryParallel(M:DecidableSet).
         firstorder.
     Defined.
 
-    Definition split_arbitrary_ens (X:sig (Configuration (arbitrary_par_es Family))) :
+    Definition split_arbitrary_ens (X:sig (Configuration (par_arbitrary_es Family))) :
       forall u:U, sig (Configuration (Family u)).
     Proof.
       intro u.
@@ -282,7 +282,7 @@ Module ArbitraryParallel(M:DecidableSet).
         exists (eq_refl u); intuition.
     Defined.
 
-    Lemma union_split_arbitrary (X:sig (Configuration (arbitrary_par_es Family))) :
+    Lemma union_split_arbitrary (X:sig (Configuration (par_arbitrary_es Family))) :
       union_arbitrary_ens (split_arbitrary_ens X) = X.
     Proof.
       destruct X as (X,HX).
@@ -299,7 +299,7 @@ Module ArbitraryParallel(M:DecidableSet).
 
     Lemma config_sim1 p i e:
           Configuration (Family i) (Add _ (proj1_sig (p i)) e) ->
-          Configuration (arbitrary_par_es Family)
+          Configuration (par_arbitrary_es Family)
                         (Add _ (proj1_sig (union_arbitrary_ens p))
                              (existT (fun i0 : U => Event (Family i0)) i e)).
     Proof.
@@ -341,7 +341,7 @@ Module ArbitraryParallel(M:DecidableSet).
 
     (* This need decidable equality over I *)
     Lemma par_arbitrary_sim1 :
-      Simulation (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family))
+      Simulation (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (par_arbitrary_es Family))
                  (fun x y => y=union_arbitrary_ens x).
     Proof.
       intros p q rpq p' a tpp'.
@@ -374,7 +374,7 @@ Module ArbitraryParallel(M:DecidableSet).
     Definition EventsOf i := Event (Family i).
 
     Lemma config_sim2 p i e :
-      Configuration (arbitrary_par_es Family)
+      Configuration (par_arbitrary_es Family)
                     (Add _ (proj1_sig p) (existT EventsOf i e))
       -> Configuration (Family i) (Add _ (proj1_sig (split_arbitrary_ens p i)) e).
     Proof.
@@ -413,7 +413,7 @@ Module ArbitraryParallel(M:DecidableSet).
     Qed.
 
     Lemma par_arbitrary_sim2 :
-      Simulation (lts_of_es (arbitrary_par_es Family)) (par_arbitrary_lts (compose (@lts_of_es Lbl) Family))
+      Simulation (lts_of_es (par_arbitrary_es Family)) (par_arbitrary_lts (compose (@lts_of_es Lbl) Family))
                  (fun y x => y=union_arbitrary_ens x).
     Proof.
       intros p q rpq p' a tpp'.
@@ -449,14 +449,14 @@ Module ArbitraryParallel(M:DecidableSet).
     Qed.
 
     Lemma empty_union_arbitrary :
-      empty (arbitrary_par_es Family) = union_arbitrary_ens (fun u : U => empty (Family u)).
+      empty (par_arbitrary_es Family) = union_arbitrary_ens (fun u : U => empty (Family u)).
     Proof.
       apply specif_eq, Extensionality_Ensembles; simpl.
       split; [intros i ix | intros (H,i) ix]; now apply Noone_in_empty in ix.
     Qed.
 
     Theorem par_arbitrary_bisim :
-      Bisimilar (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (arbitrary_par_es Family)).
+      Bisimilar (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (par_arbitrary_es Family)).
     Proof.
       exists (fun x y => y = union_arbitrary_ens x).
       split; try split.

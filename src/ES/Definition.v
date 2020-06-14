@@ -14,6 +14,12 @@ Definition conflict_inherit {A} (cmp cfl : relation A) :=
 
 Set Implicit Arguments.
 
+Definition union_rel A (R1 R2 : relation A) := fun x y => R1 x y \/ R2 x y.
+
+Lemma conflict_union A (R1 R2 : relation A) (cR1 : conflict _ R1) (cR2 : conflict _ R2) :
+  conflict _ (union_rel R1 R2).
+Proof. firstorder. Qed.
+
 Record ES (Lbl : Set) :=
   mkES { Event: Type;
          cmp : relation Event; cmp_ord : order Event cmp;
