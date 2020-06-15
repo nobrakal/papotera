@@ -174,15 +174,15 @@ End ParallelCorrect.
 
 Require Import Coq.Logic.Eqdep_dec.
 
+Definition par_arbitrary_rel I (famt : I -> Type) (fam : forall i, relation (famt i)) : relation (sigT famt) :=
+    fun '(existT _ i x) '(existT _ j y) =>
+      exists H, fam i x (cast H famt y).
+
 Module ArbitraryParallel(M:DecidableSet).
 
   Module DEqDep := DecidableEqDepSet(M).
 
   Import M.
-
-  Definition par_arbitrary_rel I (famt : I -> Type) (fam : forall i, relation (famt i)) : relation (sigT famt) :=
-    fun '(existT _ i x) '(existT _ j y) =>
-      exists H, fam i x (cast H famt y).
 
   (* This proof requires UIP but in the theorem, we need decidable equality over I,
      so we just require Decidable equality here to get UIP without any axiom *)

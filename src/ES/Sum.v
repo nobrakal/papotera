@@ -1,6 +1,8 @@
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Coq.Sets.Constructive_sets.
 
+Require Import Coq.Program.Basics.
+
 Require Import Coq.Logic.Eqdep_dec.
 
 Require Import Causality.Utils.
@@ -32,7 +34,7 @@ Module ArbitraryParallel(M:DecidableSet).
 
   Definition sum_arbitrary_rel I (famt : I -> Type) (fam : forall i, relation (famt i))
     : relation (sigT famt) :=
-    union_rel (Par.par_arbitrary_rel fam) (orth_arbitrary_rel fam).
+    union_rel (par_arbitrary_rel fam) (orth_arbitrary_rel fam).
 
   Lemma sum_arbitrary_conflict (famt : U -> Type) (fam : forall u:U, relation (famt u))
         (famc : forall u, conflict _ (fam u))
@@ -46,7 +48,7 @@ Module ArbitraryParallel(M:DecidableSet).
         (famoo : forall i, order _ (famo i)) (famcc : forall i, conflict _ (famc i))
         (famii: forall i, conflict_inherit (famo i) (famc i))
     :
-    conflict_inherit (Par.par_arbitrary_rel famo) (sum_arbitrary_rel famc).
+    conflict_inherit (par_arbitrary_rel famo) (sum_arbitrary_rel famc).
   Proof.
     intros x y z sxy pyz.
     destruct sxy.
@@ -59,7 +61,7 @@ Module ArbitraryParallel(M:DecidableSet).
       destruct E; intuition.
       Qed.
 
-  Definition arbitrary_sum_es (Lbl:Set) (Family: U -> ES Lbl) : ES Lbl :=
+  Definition sum_arbitrary_es (Lbl:Set) (Family: U -> ES Lbl) : ES Lbl :=
     let famo i := cmp_ord (Family i) in
     let famc i := cfl_conflict (Family i) in
     let fami i := inherit (Family i) in
@@ -69,4 +71,78 @@ Module ArbitraryParallel(M:DecidableSet).
     let lbl := fun '(existT _ i x) => lbl (Family i) x in
     mkES cmp_order cfl_conflict inherit lbl.
 
+  Section WithFamily.
+    Variables (Lbl:Set) (Family : U -> ES Lbl).
+
+    Program Definition select_arbitrary_ens
+            (X : option (sigT (StateOf (compose (@lts_of_es Lbl) Family)))) :
+      sig (Configuration (sum_arbitrary_es Family)) :=
+      match X with
+      | None => empty _
+      | Some (existT _ i X) =>
+        exist
+          _
+          (fun '(existT _ j y) =>
+             exists (H:j=i), proj1_sig X (cast H (fun i => Event (Family i)) y)) _ end.
+
+    Next Obligation.
+      destruct X as (X,H); simpl in *.
+      split.
+      - intros (j,x) (E,ix) (k,y) (E',cxy); destruct E,E'; unfold In in *; simpl in *.
+        exists (eq_refl j); firstorder.
+      - intros (j,x) (k,y) (E,ix) (E',iy) cxy.
+        destruct E,E'.
+        destruct cxy; simpl in *.
+        + destruct H0 as (E,H0).
+          rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H0; simpl in *.
+          destruct H as (D,C).
+          apply C with (x:=x)(y:=y); intuition.
+        + congruence.
+    Defined.
+
+    Lemma sum_arbitrary_sim1 :
+      Simulation
+        (sum_arbitrary_lts (compose (lts_of_es (Lbl:=Lbl)) Family))
+        (lts_of_es (sum_arbitrary_es Family))
+        (fun x y => y = select_arbitrary_ens x).
+    Proof.
+      intros p q rpq p' a tpp'.
+      exists (select_arbitrary_ens p'); intuition.
+      rewrite rpq.
+      destruct p as [(i,p)|],p' as [(j,p')|]; intuition.
+      - destruct tpp' as (E,(e,(H2,(H3,(H4,H5))))).
+        destruct E.
+        exists (existT _ j e); intuition.
+        + admit.
+        + admit.
+        + unfold In in H; simpl in H.
+          destruct H as (E,H).
+          rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H; simpl in *.
+          firstorder.
+      - destruct tpp' as (e,(H2,(H3,(H4,H5)))).
+        exists (existT _ j e); intuition.
+        + admit.
+        + admit.
+        + now apply Noone_in_empty in H.
+    Admitted.
+
+    Lemma sum_arbitrary_sim2 :
+      Simulation
+        (lts_of_es (sum_arbitrary_es Family))
+        (sum_arbitrary_lts (compose (lts_of_es (Lbl:=Lbl)) Family))
+        (fun y x => y = select_arbitrary_ens x).
+    Proof.
+    Admitted.
+
+    Theorem sum_arbitrary_bisim :
+      Bisimilar (sum_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (sum_arbitrary_es Family)).
+    Proof.
+      exists (fun x y => y = select_arbitrary_ens x).
+      split; try split.
+      - apply sum_arbitrary_sim1.
+      - apply sum_arbitrary_sim2.
+      - intuition.
+    Qed.
+
+  End WithFamily.
 End ArbitraryParallel.

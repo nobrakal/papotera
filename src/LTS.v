@@ -53,7 +53,7 @@ Definition trans_sum_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) :
           In _ (trans (Family i) x) (cast H (StateOf Family) x',a) end
       end.
 
-Definition sum_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) : LTS Lbl :=
+Definition sum_arbitrary_lts (Lbl I : Set) (Family : I -> LTS Lbl) : LTS Lbl :=
   mkLTS (@trans_sum_arbitrary _ _ Family) None.
 
 Definition Trans S (X:LTS S) p p' a : Prop := In _ (X.(trans) p) (p',a).
