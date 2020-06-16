@@ -113,7 +113,18 @@ Module ArbitraryParallel(M:DecidableSet).
       - destruct tpp' as (E,(e,(H2,(H3,(H4,H5))))).
         destruct E.
         exists (existT _ j e); intuition.
-        + admit.
+        + simpl; simpl in H2; rewrite H2.
+          apply Extensionality_Ensembles; split; intros (i,x) ix; unfold In in *.
+          * destruct ix as (E,ix).
+            destruct E; simpl in *.
+            apply Add_inv in ix; destruct ix.
+            -- apply Add_intro1; unfold In; exists (eq_refl i); intuition.
+            -- rewrite H; apply Add_intro2.
+          * apply Add_inv in ix; unfold In in ix; destruct ix.
+            -- destruct H as (E,H); destruct E; exists (eq_refl i); apply Add_intro1; intuition.
+            -- generalize H; intros H'.
+               apply projT1_eq in H; simpl in H; destruct H; apply DEqDep.inj_pairT2 in H'.
+               rewrite H'; exists (eq_refl j); apply Add_intro2.
         + admit.
         + unfold In in H; simpl in H.
           destruct H as (E,H).
@@ -121,7 +132,17 @@ Module ArbitraryParallel(M:DecidableSet).
           firstorder.
       - destruct tpp' as (e,(H2,(H3,(H4,H5)))).
         exists (existT _ j e); intuition.
-        + admit.
+        + simpl in H2; simpl; rewrite H2.
+          apply Extensionality_Ensembles; split; intros (i,x) ix; unfold In in *.
+          * destruct ix as (E,H); destruct E.
+            apply Add_inv in H; destruct H.
+            -- now apply Noone_in_empty in H.
+            -- rewrite H; apply Add_intro2.
+          * apply Add_inv in ix; destruct ix.
+            -- now apply Noone_in_empty in H.
+            -- generalize H; intros H'.
+               apply projT1_eq in H; simpl in H; destruct H; apply DEqDep.inj_pairT2 in H'.
+               rewrite H'; exists (eq_refl j); apply Add_intro2.
         + admit.
         + now apply Noone_in_empty in H.
     Admitted.
