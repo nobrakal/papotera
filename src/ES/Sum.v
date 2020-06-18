@@ -12,6 +12,16 @@ Require Import Causality.ES.Parallel.
 
 Set Implicit Arguments.
 
+Lemma Add_empty {A} e : Add _ (Empty_set A) e = Singleton _ e.
+Proof.
+  apply Extensionality_Ensembles.
+  split; intros i ix.
+  - apply Add_inv in ix; destruct ix.
+    now apply Noone_in_empty in H.
+    now rewrite H.
+  - apply Singleton_inv in ix; rewrite ix; intuition.
+Qed.
+
 Module ArbitraryParallel(M:DecidableSet).
 
   Module DEqDep := DecidableEqDepSet(M).
@@ -75,11 +85,10 @@ Module ArbitraryParallel(M:DecidableSet).
     Variables (Lbl:Set) (Family : U -> ES Lbl).
 
     Program Definition select_arbitrary_ens
-            (X : option (sigT (StateOf (compose (@lts_of_es Lbl) Family)))) :
+            (X : sigT (StateOf (compose (@lts_of_es Lbl) Family))) :
       sig (Configuration (sum_arbitrary_es Family)) :=
       match X with
-      | None => empty _
-      | Some (existT _ i X) =>
+      | existT _ i X =>
         exist
           _
           (fun '(existT _ j y) =>
@@ -100,17 +109,92 @@ Module ArbitraryParallel(M:DecidableSet).
         + congruence.
     Defined.
 
+     Definition EventOf i := Event (Family i).
+
+    Lemma sigT_eq (z k : U) (e:Event (Family z)) (y:Event(Family k)):
+      existT EventOf z e = existT EventOf k y ->
+      exists (H:k = z), e = cast H EventOf y.
+    Proof.
+      intros H.
+      generalize H; intros H'.
+      apply projT1_eq in H; simpl in H.
+      symmetry in H; exists H.
+      destruct H; now apply DEqDep.inj_pairT2 in H'.
+    Qed.
+
+    Lemma config_sim_1 j (p:StateOf (compose (@lts_of_es Lbl) Family) j) e :
+      Configuration (Family j) (Add (Event (Family j)) (proj1_sig p) e) ->
+      Configuration (sum_arbitrary_es Family)
+                    (Add _
+                         (proj1_sig (select_arbitrary_ens
+                                       (existT (StateOf (compose (@lts_of_es Lbl) Family)) j p)))
+                         (existT (fun i : U => Event (Family i)) j e)).
+    Proof.
+      intros (D,C).
+      split.
+      - intros (i,x) ix (z,y) (H,cxy).
+        destruct H.
+        unfold downclosed in D.
+        apply Add_inv in ix; destruct ix.
+        + simpl in H; unfold In in H.
+          destruct H as (H1,H).
+          destruct H1; simpl in *.
+          specialize D with x y.
+          assert (In _ (Add _ (proj1_sig p) e) y) as A by (apply D; intuition).
+          apply Add_inv in A; destruct A.
+          * apply Add_intro1; exists (eq_refl i); intuition.
+          * rewrite H0; apply Add_intro2.
+        + destruct (sigT_eq H) as (H1,H2); destruct H1.
+          specialize D with x y.
+          assert (In _ (Add _ (proj1_sig p) e) y) as A by (apply D; intuition; rewrite H2; intuition).
+          apply Add_inv in A.
+          destruct A.
+          * apply Add_intro1; exists (eq_refl i); intuition.
+          * rewrite H0; apply Add_intro2; intuition.
+      - intros (z,x) (k,y) ix iy cxy.
+        unfold conflict_free in C.
+        apply Add_inv in ix.
+        apply Add_inv in iy.
+        destruct ix as [(Ex,Hx)|Hx],iy as [(Ey,Hy)|Hy].
+        + destruct Ex,Ey.
+          destruct cxy as [(E,H)|H]; try congruence.
+          rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H.
+          apply C with x y; intuition.
+        + destruct Ex.
+          destruct (sigT_eq Hy) as (Ey1,Ey2); destruct Ey1; simpl in Ey2.
+          destruct cxy as [(E,H)|H]; try congruence.
+          rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H.
+          apply C with x y; intuition; rewrite Ey2; intuition.
+        + destruct Ey.
+          destruct (sigT_eq Hx) as (Ex1,Ex2); destruct Ex1; simpl in Ex2.
+          destruct cxy as [(E,H)|H]; try congruence.
+          rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H.
+          apply C with x y; intuition; rewrite Ex2; intuition.
+        + destruct (sigT_eq Hy) as (Ey1,Ey2); destruct Ey1; simpl in Ey2.
+          destruct (sigT_eq Hx) as (Ex1,Ex2); destruct Ex1; simpl in Ex2.
+          rewrite <- Ex2, <- Ey2 in cxy.
+          destruct (sum_arbitrary_conflict _ _ (fun i => cfl_conflict (Family i))) as (S,I).
+          unfold irreflexive in I.
+          specialize I with ((existT EventOf z e)).
+          intuition.
+    Qed.
+
+    Definition therel :
+      option (sigT (StateOf (compose (@lts_of_es Lbl) Family))) ->
+      sig (Configuration (sum_arbitrary_es Family)) -> Prop :=
+      fun x y => maybe (proj1_sig y=Empty_set _) (fun x => y = select_arbitrary_ens x) x.
+
     Lemma sum_arbitrary_sim1 :
       Simulation
         (sum_arbitrary_lts (compose (lts_of_es (Lbl:=Lbl)) Family))
         (lts_of_es (sum_arbitrary_es Family))
-        (fun x y => y = select_arbitrary_ens x).
+        therel.
     Proof.
       intros p q rpq p' a tpp'.
-      exists (select_arbitrary_ens p'); intuition.
-      rewrite rpq.
-      destruct p as [(i,p)|],p' as [(j,p')|]; intuition.
-      - destruct tpp' as (E,(e,(H2,(H3,(H4,H5))))).
+      destruct p as [p|],p' as [p'|]; intuition; exists (select_arbitrary_ens p'); simpl; intuition.
+      - destruct p as (i,p), p' as (j,p').
+        rewrite rpq.
+        destruct tpp' as (E,(e,(H2,(H3,(H4,H5))))).
         destruct E.
         exists (existT _ j e); intuition.
         + simpl; simpl in H2; rewrite H2.
@@ -122,47 +206,127 @@ Module ArbitraryParallel(M:DecidableSet).
             -- rewrite H; apply Add_intro2.
           * apply Add_inv in ix; unfold In in ix; destruct ix.
             -- destruct H as (E,H); destruct E; exists (eq_refl i); apply Add_intro1; intuition.
-            -- generalize H; intros H'.
-               apply projT1_eq in H; simpl in H; destruct H; apply DEqDep.inj_pairT2 in H'.
-               rewrite H'; exists (eq_refl j); apply Add_intro2.
-        + admit.
+            -- destruct (sigT_eq H) as (E1,E2); destruct E1.
+               rewrite E2; exists (eq_refl i); apply Add_intro2.
+        + now apply config_sim_1.
         + unfold In in H; simpl in H.
           destruct H as (E,H).
           rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H; simpl in *.
           firstorder.
-      - destruct tpp' as (e,(H2,(H3,(H4,H5)))).
-        exists (existT _ j e); intuition.
-        + simpl in H2; simpl; rewrite H2.
-          apply Extensionality_Ensembles; split; intros (i,x) ix; unfold In in *.
+      - destruct p' as (j,p'); simpl in *.
+        destruct tpp' as (e,(H2,(H3,(H4,H5)))).
+        simpl in H2; simpl; rewrite H2.
+        rewrite rpq.
+        exists (existT _ j e); rewrite Add_empty in *; intuition.
+        + apply Extensionality_Ensembles; split; intros (i,x) ix; unfold In in *.
           * destruct ix as (E,H); destruct E.
-            apply Add_inv in H; destruct H.
-            -- now apply Noone_in_empty in H.
-            -- rewrite H; apply Add_intro2.
-          * apply Add_inv in ix; destruct ix.
-            -- now apply Noone_in_empty in H.
-            -- generalize H; intros H'.
-               apply projT1_eq in H; simpl in H; destruct H; apply DEqDep.inj_pairT2 in H'.
-               rewrite H'; exists (eq_refl j); apply Add_intro2.
-        + admit.
+            apply Singleton_inv in H.
+            simpl in H; rewrite H; now apply Add_intro2.
+          * rewrite Add_empty in ix. apply Singleton_inv in ix.
+            destruct (sigT_eq ix) as (E1,E2); destruct E1.
+            exists (eq_refl i); simpl; rewrite E2; apply In_singleton.
+        + rewrite Add_empty.
+          destruct H3 as (D,C).
+          split.
+          * intros (z,x) ix (k,y) (E,cxy).
+            destruct E.
+            apply Singleton_inv in ix.
+            generalize ix; intros ix'.
+            apply projT1_eq in ix; simpl in ix; destruct ix; apply DEqDep.inj_pairT2 in ix'.
+            unfold downclosed in D; specialize D with x y.
+            apply Singleton_intro.
+            assert (e=y) as H by (apply Singleton_inv,D; intuition).
+            now rewrite H.
+          * intros (z,x) (k,y) ix iy H.
+            apply Singleton_inv in ix.
+            apply Singleton_inv in iy.
+            destruct (sigT_eq ix) as (E1x,E2x); destruct E1x.
+            destruct (sigT_eq iy) as (E1y,E2y); destruct E1y.
+            simpl in E2x, E2y; rewrite <- E2x, <- E2y in H.
+            destruct (sum_arbitrary_conflict _ _ (fun i => cfl_conflict (Family i))) as (S,I).
+            unfold irreflexive in I.
+            specialize I with ((existT EventOf k e)).
+            intuition.
         + now apply Noone_in_empty in H.
-    Admitted.
+    Qed.
+
+    Program Definition unselect_arbitrary_ens
+            (X : sig (Configuration (sum_arbitrary_es Family))) :
+      forall i:U, StateOf (compose (@lts_of_es Lbl) Family) i :=
+      fun i => exist _ (fun x => In _ (proj1_sig X) (existT _ i x)) _.
+
+    Next Obligation.
+      destruct H as (D,C).
+      split.
+      - intros x ix y cxy.
+        unfold In in *.
+        unfold downclosed in D.
+        specialize D with
+            (existT EventOf i x) (existT EventOf i y).
+        apply D; intuition.
+        exists (eq_refl i); intuition.
+      - intros x y ix iy cxy.
+        unfold conflict_free in C.
+        specialize C with
+            (existT EventOf i x) (existT EventOf i y).
+        apply C; intuition.
+        left.
+        exists (eq_refl i); intuition.
+    Defined.
 
     Lemma sum_arbitrary_sim2 :
       Simulation
         (lts_of_es (sum_arbitrary_es Family))
         (sum_arbitrary_lts (compose (lts_of_es (Lbl:=Lbl)) Family))
-        (fun y x => y = select_arbitrary_ens x).
+        (fun y x => therel x y).
     Proof.
+      intros p q rpq p' a tpp'.
+      simpl in *.
+      destruct tpp' as ((i,e),(H1,(H2,(H3,H4)))).
+      exists (Some (existT _ i (unselect_arbitrary_ens p' i))).
+      destruct q as [(j,q)|].
+      - split.
+        + assert (i=j) as H.
+          * apply proj1_sig_eq in rpq.
+            simpl in rpq.
+            assert (In _ (proj1_sig p') (existT (fun i : U => Event (Family i)) i e)) as H
+                by (rewrite H1; intuition).
+            admit.
+          * exists H; destruct H; exists e; intuition.
+            -- admit.
+            -- admit.
+            -- apply H3.
+               rewrite rpq.
+               exists (eq_refl i); intuition.
+        + apply specif_eq.
+          admit.
+      - simpl in rpq.
+        split.
+        + exists e; intuition.
+          * admit.
+          * admit.
+          * now apply Noone_in_empty in H.
+        + apply specif_eq, Extensionality_Ensembles; simpl.
+          rewrite H1,rpq,Add_empty.
+          split; intros (z,x) ix.
+          * apply Singleton_inv in ix.
+            generalize ix; intros ix'.
+            apply projT1_eq in ix; simpl in ix.
+            symmetry in ix; exists ix.
+            destruct ix; apply DEqDep.inj_pairT2 in ix'.
+            rewrite ix'; intuition.
+          * destruct ix as (E,ix).
+            destruct E; intuition.
     Admitted.
 
     Theorem sum_arbitrary_bisim :
       Bisimilar (sum_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (sum_arbitrary_es Family)).
     Proof.
-      exists (fun x y => y = select_arbitrary_ens x).
+      exists therel.
       split; try split.
       - apply sum_arbitrary_sim1.
       - apply sum_arbitrary_sim2.
-      - intuition.
+      - simpl; intuition.
     Qed.
 
   End WithFamily.
