@@ -299,7 +299,20 @@ Module ArbitraryParallel(M:DecidableSet).
           * right; simpl; intuition.
         + split.
           * exists H; destruct H; exists e; intuition.
-            -- admit.
+            -- simpl.
+               apply Extensionality_Ensembles; split; intros x ix.
+               ++ rewrite H1 in ix.
+                  apply Add_inv in ix; destruct ix.
+                  ** apply R1 in H; destruct H as (E,H).
+                     rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H.
+                     now apply Add_intro1.
+                  ** apply  DEqDep.inj_pairT2 in H.
+                     rewrite H; apply Add_intro2.
+               ++ rewrite H1.
+                  apply Add_inv in ix; destruct ix.
+                  ** apply Add_intro1, R2.
+                     exists (eq_refl i); easy.
+                  ** rewrite H; apply Add_intro2.
             -- admit.
             -- apply H3,R2.
                exists (eq_refl i); intuition.
