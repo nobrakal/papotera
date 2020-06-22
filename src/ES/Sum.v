@@ -22,7 +22,7 @@ Proof.
   - apply Singleton_inv in ix; rewrite ix; intuition.
 Qed.
 
-Module ArbitraryParallel(M:DecidableSet).
+Module ArbitrarySum(M:DecidableSet).
 
   Module DEqDep := DecidableEqDepSet(M).
   Module Par := Parallel.ArbitraryParallel(M).
@@ -393,4 +393,4 @@ Module ArbitraryParallel(M:DecidableSet).
     Qed.
 
   End WithFamily.
-End ArbitraryParallel.
+End ArbitrarySum.

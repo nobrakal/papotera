@@ -27,6 +27,22 @@ Record ES (Lbl : Set) :=
          inherit : conflict_inherit cmp cfl;
          lbl : Event -> Lbl}.
 
+Definition empty_rel A : A -> A -> Prop := fun _ _ => False.
+
+Lemma empty_order : order _ (@empty_rel False).
+Proof. split; intuition; intros x; intuition. Qed.
+
+Lemma empty_conflict : conflict _ (@empty_rel False).
+Proof. split; intuition; intros x hx; intuition. Qed.
+
+Lemma empty_inherit : conflict_inherit (@empty_rel False) (@empty_rel False).
+Proof. firstorder. Qed.
+
+Lemma false_all S : False -> S. Proof. intuition. Qed.
+
+Definition empty_es S : ES S :=
+  mkES empty_order empty_conflict empty_inherit (@false_all S).
+
 Require Import LTS.
 
 Definition downclosed a (cmp : relation a) (X: Ensemble a) :=

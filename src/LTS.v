@@ -56,6 +56,11 @@ Definition trans_sum_arbitrary (Lbl I : Set) (Family : I -> LTS Lbl) :
 Definition sum_arbitrary_lts (Lbl I : Set) (Family : I -> LTS Lbl) : LTS Lbl :=
   mkLTS (@trans_sum_arbitrary _ _ Family) None.
 
+Definition empty_lts Lbl : LTS Lbl :=
+  let trans _ := Empty_set _ in
+  let start := False in
+  mkLTS trans start.
+
 Definition Trans S (X:LTS S) p p' a : Prop := In _ (X.(trans) p) (p',a).
 
 Definition Simulation S (X:LTS S) (Y:LTS S) (R: X.(State) -> Y.(State) -> Prop) :=

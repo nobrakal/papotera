@@ -5,3 +5,4 @@ src/ES/Definition.v
 src/ES/Parallel.v
 src/ES/Sum.v
 src/ES/Prefixing.v
+src/Program.v
