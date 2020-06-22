@@ -37,9 +37,7 @@ Module ArbitraryParallel(M:DecidableSet).
         (famc : forall u, conflict _ (fam u))
     : conflict _ (orth_arbitrary_rel fam).
   Proof.
-    split.
-    - intros (i,x) (j,y) cxy; now apply not_eq_sym.
-    - intros (i,x); intuition.
+    split; [intros (i,x) (j,y) cxy | intros (i,x)]; firstorder.
   Qed.
 
   Definition sum_arbitrary_rel I (famt : I -> Type) (fam : forall i, relation (famt i))
@@ -63,12 +61,10 @@ Module ArbitraryParallel(M:DecidableSet).
     intros x y z sxy pyz.
     destruct sxy.
     - left.
-      pose (E:=Par.par_arbitrary_inherit famo famc famoo famcc famii).
-      unfold conflict_inherit in E; specialize E with x y z.
-      now apply E.
+      now apply (Par.par_arbitrary_inherit famo famc famoo famcc famii) with (x:=x) (y:=y) (z:=z).
     - right.
-      destruct x as (i,x),y as (j,y), z as (k,z), pyz as (E,pyz).
-      destruct E; intuition.
+      destruct x as (i,x),y as (j,y), z as (k,z), pyz as (E,pyz), E.
+      intuition.
       Qed.
 
   Definition sum_arbitrary_es (Lbl:Set) (Family: U -> ES Lbl) : ES Lbl :=
@@ -96,12 +92,10 @@ Module ArbitraryParallel(M:DecidableSet).
 
     Next Obligation.
       destruct X as (X,H); simpl in *.
-      split.
-      - intros (j,x) (E,ix) (k,y) (E',cxy); destruct E,E'; unfold In in *; simpl in *.
+      split; [intros (j,x) (E,ix) (k,y) (E',cxy)| intros (j,x) (k,y) (E,ix) (E',iy) cxy]; destruct E,E'.
+      - unfold In in *; simpl in *.
         exists (eq_refl j); firstorder.
-      - intros (j,x) (k,y) (E,ix) (E',iy) cxy.
-        destruct E,E'.
-        destruct cxy; simpl in *.
+      - destruct cxy; simpl in *.
         + destruct H0 as (E,H0).
           rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H0; simpl in *.
           destruct H as (D,C).
@@ -122,21 +116,21 @@ Module ArbitraryParallel(M:DecidableSet).
       destruct H; now apply DEqDep.inj_pairT2 in H'.
     Qed.
 
-    Definition therel :
-      option (sigT (StateOf (compose (@lts_of_es Lbl) Family))) ->
-      sig (Configuration (sum_arbitrary_es Family)) -> Prop :=
-      fun x y =>
-        maybe (proj1_sig y=Empty_set _)
-              (fun x => Inhabited _ (proj1_sig (projT2 x)) /\ y = select_arbitrary_ens x)
-              x.
+    Definition therel
+      (x : option (sigT (StateOf (compose (@lts_of_es Lbl) Family))))
+      (y : sig (Configuration (sum_arbitrary_es Family))) :=
+      maybe (proj1_sig y=Empty_set _)
+            (fun x => Inhabited _ (proj1_sig (projT2 x)) /\ y = select_arbitrary_ens x)
+            x.
 
     Lemma config_sim_1 j (p:StateOf (compose (@lts_of_es Lbl) Family) j) e :
-      Configuration (Family j) (Add _ (proj1_sig p) e) ->
-      Configuration (sum_arbitrary_es Family)
-                    (Add _
-                         (proj1_sig (select_arbitrary_ens
-                                       (existT (StateOf (compose (@lts_of_es Lbl) Family)) j p)))
-                         (existT EventOf j e)).
+      Configuration _ (Add _ (proj1_sig p) e) ->
+      Configuration
+        _ (Add _
+               (proj1_sig
+                  (select_arbitrary_ens
+                     (existT (StateOf (compose (@lts_of_es Lbl) Family)) j p)))
+               (existT EventOf j e)).
     Proof.
       intros (D,C).
       split.
@@ -146,16 +140,14 @@ Module ArbitraryParallel(M:DecidableSet).
         apply Add_inv in ix; destruct ix.
         + simpl in H; unfold In in H.
           destruct H as (H1,H),H1; simpl in *.
-          specialize D with x y.
-          assert (In _ (Add _ (proj1_sig p) e) y) as A by (apply D; intuition).
+          assert (In _ (Add _ (proj1_sig p) e) y) as A by (apply D with (x:=x) (y:=y); intuition).
           apply Add_inv in A; destruct A.
           * apply Add_intro1; exists (eq_refl i); intuition.
           * rewrite H0; apply Add_intro2.
         + destruct (sigT_eq H) as (H1,H2),H1.
-          specialize D with x y.
-          assert (In _ (Add _ (proj1_sig p) e) y) as A by (apply D; intuition; rewrite H2; intuition).
-          apply Add_inv in A.
-          destruct A.
+          assert (In _ (Add _ (proj1_sig p) e) y) as A
+              by (apply D with (x:=x) (y:=y); intuition; rewrite H2; intuition).
+          apply Add_inv in A; destruct A.
           * apply Add_intro1; exists (eq_refl i); intuition.
           * rewrite H0; apply Add_intro2; intuition.
       - intros (z,x) (k,y) ix iy cxy.
@@ -208,22 +200,20 @@ Module ArbitraryParallel(M:DecidableSet).
           destruct H as (E,H).
           rewrite (Eqdep.EqdepTheory.UIP_refl _ _ E) in H; simpl in *.
           firstorder.
-      - exists (existT _ j e); try rewrite rpq; rewrite Add_empty in *; intuition.
+      - exists (existT _ j e); try rewrite rpq; repeat rewrite Add_empty in *; intuition.
         + apply Extensionality_Ensembles; split; intros (i,x) ix; unfold In in *.
           * destruct ix as (E,H); destruct E.
             apply Singleton_inv in H.
-            simpl in H; rewrite H; now apply Add_intro2.
-          * rewrite Add_empty in ix. apply Singleton_inv in ix.
+            simpl in H; now rewrite H.
+          * apply Singleton_inv in ix.
             destruct (sigT_eq ix) as (E1,E2); destruct E1.
             exists (eq_refl i); simpl; rewrite E2; apply In_singleton.
-        + rewrite Add_empty.
-          destruct H3 as (D,C).
+        + destruct H3 as (D,C).
           split.
           * intros (z,x) ix (k,y) (E,cxy).
             destruct E.
             apply Singleton_inv in ix.
-            generalize ix; intros ix'.
-            apply projT1_eq in ix; simpl in ix; destruct ix; apply DEqDep.inj_pairT2 in ix'.
+            destruct (sigT_eq ix) as (E1,E2),E1.
             unfold downclosed in D; specialize D with x y.
             apply Singleton_intro.
             assert (e=y) as H by (apply Singleton_inv,D; intuition).
@@ -236,7 +226,7 @@ Module ArbitraryParallel(M:DecidableSet).
             simpl in E2x, E2y; rewrite <- E2x, <- E2y in H.
             destruct (sum_arbitrary_conflict _ _ (fun i => cfl_conflict (Family i))) as (S,I).
             unfold irreflexive in I.
-            specialize I with ((existT EventOf k e)).
+            specialize I with (existT EventOf k e).
             intuition.
         + now apply Noone_in_empty in H.
     Qed.
@@ -250,17 +240,10 @@ Module ArbitraryParallel(M:DecidableSet).
       destruct H as (D,C).
       split.
       - intros x ix y cxy.
-        unfold In in *.
-        unfold downclosed in D.
-        specialize D with
-            (existT EventOf i x) (existT EventOf i y).
-        apply D; intuition.
+        apply D with (x:=existT EventOf i x) (y:=existT EventOf i y); intuition.
         exists (eq_refl i); intuition.
       - intros x y ix iy cxy.
-        unfold conflict_free in C.
-        specialize C with
-            (existT EventOf i x) (existT EventOf i y).
-        apply C; intuition.
+        apply C with (x:=existT EventOf i x) (y:=existT EventOf i y); intuition.
         left.
         exists (eq_refl i); intuition.
     Defined.
@@ -276,10 +259,8 @@ Module ArbitraryParallel(M:DecidableSet).
       intros rpq (D,C).
       split.
       - intros x ix y cxy.
-        unfold downclosed in D.
-        specialize D with (x:= existT EventOf i x) (y:= existT EventOf i y).
         assert (In _ (Add _ (proj1_sig p) (existT _ i e)) (existT EventOf i y)) as P.
-        + apply Add_inv in ix; destruct ix; apply D.
+        + apply Add_inv in ix; destruct ix; apply D with (x:= existT EventOf i x) (y:= existT EventOf i y).
           1:apply Add_intro1; rewrite rpq; exists (eq_refl i); easy.
           2:rewrite rpq,H; apply Add_intro2.
           all: exists (eq_refl i); easy.
@@ -289,11 +270,10 @@ Module ArbitraryParallel(M:DecidableSet).
           * apply DEqDep.inj_pairT2 in H.
             rewrite H; apply Add_intro2.
       -  intros x y ix iy cxy.
-         unfold conflict_free in C.
          apply Add_inv in ix.
          apply Add_inv in iy.
-         specialize C with (x:= existT EventOf i x) (y:= existT EventOf i y).
-         destruct ix as [H0|H0],iy as [H1|H1]; apply C; try rewrite rpq.
+         destruct ix as [H0|H0],iy as [H1|H1];
+           apply C with (x:= existT EventOf i x) (y:= existT EventOf i y); try rewrite rpq.
          1,2,4,8: apply Add_intro1; exists (eq_refl i); easy.
          1,3,5:left; exists (eq_refl i); easy.
          1:rewrite H1; apply Add_intro2.
@@ -301,7 +281,7 @@ Module ArbitraryParallel(M:DecidableSet).
          all:
            rewrite <- H0, <- H1 in cxy;
            destruct (cfl_conflict (Family i));
-           unfold irreflexive  in conflict_irfl;
+           unfold irreflexive in conflict_irfl;
            specialize conflict_irfl with e; congruence.
     Qed.
 
@@ -322,11 +302,9 @@ Module ArbitraryParallel(M:DecidableSet).
         assert (i=j) as H.
         + destruct IH as (x,Hx).
           destruct p' as (p',(Dp',Cp')); simpl in *.
-          unfold conflict_free in Cp'.
           destruct (eq_dec i j); try easy.
           exfalso.
-          specialize Cp' with (existT EventOf j x) (existT EventOf i e).
-          apply Cp'; try rewrite H1.
+          apply Cp' with (x:=existT EventOf j x) (y:=existT EventOf i e); try rewrite H1.
           * apply Add_intro1,R2.
             exists (eq_refl j); easy.
           * apply Add_intro2.
