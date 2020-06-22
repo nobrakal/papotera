@@ -136,7 +136,6 @@ Module ArbitraryParallel(M:DecidableSet).
       split.
       - intros (i,x) ix (z,y) (H,cxy).
         destruct H.
-        unfold downclosed in D.
         apply Add_inv in ix; destruct ix.
         + simpl in H; unfold In in H.
           destruct H as (H1,H),H1; simpl in *.
@@ -151,7 +150,6 @@ Module ArbitraryParallel(M:DecidableSet).
           * apply Add_intro1; exists (eq_refl i); intuition.
           * rewrite H0; apply Add_intro2; intuition.
       - intros (z,x) (k,y) ix iy cxy.
-        unfold conflict_free in C.
         apply Add_inv in ix.
         apply Add_inv in iy.
         destruct ix as [(Ex,Hx)|Hx],iy as [(Ey,Hy)|Hy].
@@ -346,27 +344,22 @@ Module ArbitraryParallel(M:DecidableSet).
         + exists e; intuition; simpl.
           * rewrite H1,rpq.
             repeat rewrite Add_empty.
-            apply Extensionality_Ensembles; split; intros x ix; apply Singleton_inv in ix.
-            apply DEqDep.inj_pairT2 in ix; now rewrite ix.
-            now rewrite ix.
+            apply Extensionality_Ensembles; split; intros x ix; apply Singleton_inv in ix;
+              [apply DEqDep.inj_pairT2 in ix|]; now rewrite ix.
           * rewrite Add_empty.
             rewrite rpq,Add_empty in H2.
             destruct H2 as (D,C).
             split.
             -- intros x ix y cxy.
                apply Singleton_inv in ix.
-               unfold downclosed in D.
-               specialize D with (existT EventOf i x) (existT EventOf i y).
                assert (In _ (Singleton _ (existT EventOf i e)) (existT EventOf i y)) as H.
-               ++ apply D; intuition.
+               ++ apply D with (x:=existT EventOf i x) (y:=existT EventOf i y); intuition.
                   now rewrite ix.
-                  simpl.
                   exists (eq_refl i); intuition.
                ++ apply Singleton_inv in H.
                   apply DEqDep.inj_pairT2 in H; now rewrite H.
             -- intros x y ix iy cxy.
                destruct (sum_arbitrary_conflict _ _ (fun i => cfl_conflict (Family i))) as (S,I).
-               unfold irreflexive in I.
                apply I with (x:= existT EventOf i e).
                apply Singleton_inv in ix.
                apply Singleton_inv in iy.
