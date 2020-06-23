@@ -70,39 +70,46 @@ Definition Simulation S (X:LTS S) (Y:LTS S) (R: X.(State) -> Y.(State) -> Prop) 
 Definition Bisimulation S (X:LTS S) (Y:LTS S) (R: X.(State) -> Y.(State) -> Prop) : Prop :=
   Simulation X Y R /\ Simulation Y X (fun x y => R y x) /\ R X.(start) Y.(start).
 
-Definition Bisimilar S (X:LTS S) (Y:LTS S) : Prop :=
-  exists R, Bisimulation X Y R.
+Definition Bisimilar S (X:LTS S) (Y:LTS S) :=
+  sig (Bisimulation X Y).
 
-Instance Equivalence_Bisimilar {S} : Equivalence (@Bisimilar S).
+Lemma bisim_refl S (X:LTS S) : Bisimilar X X.
 Proof.
-  split.
-  - intros X; exists (fun x y => x=y).
+  split with (x:=fun x y => x=y);
     split; try split; try easy;
       intros p q rpq p' a tpp';
       exists p'; [rewrite <- rpq | rewrite rpq]; intuition.
-  - intros X Y (R,(S1,(S2,E))).
-    exists (fun x y => R y x).
-    split; try split; try easy.
-  - intros X Y Z (R1,(S11,(S12,E1))) (R2,(S21,(S22,E2))).
-    exists (fun x z => exists y, R1 x y /\ R2 y z).
-    split; try split.
-    + intros p q (y,(R1y,R2y)) p' a tpp'.
-      unfold Simulation in S11,S21.
-      apply S11 with (p':=p') (a:=a) in R1y; try easy.
-      destruct R1y as (y', (tyy', R')).
-      apply S21 with (p':=y') (a:=a) in R2y; try easy.
-      destruct R2y as (q', (ty'q, R'')).
-      exists q'.
-      split; try easy.
-      exists y'; easy.
-    + intros p q (y,(R1y,R2y)) p' a tpp'.
-      unfold Simulation in S12,S22.
-      apply S22 with (p':=p') (a:=a) in R2y; try easy.
-      destruct R2y as (y', (tyy', R')).
-      apply S12 with (p':=y') (a:=a) in R1y; try easy.
-      destruct R1y as (q', (ty'q, R'')).
-      exists q'.
-      split; try easy.
-      exists y'; easy.
-    + now exists (Y.(start)).
+Qed.
+
+Lemma bisim_sym S (X Y:LTS S) : Bisimilar X Y -> Bisimilar Y X.
+Proof.
+  intros (R,(S1,(S2,E))).
+  split with (x:=fun x y => R y x).
+  split; try split; try easy.
+Qed.
+
+Lemma bisim_trans S (X Y Z:LTS S) : Bisimilar X Y -> Bisimilar Y Z -> Bisimilar X Z.
+Proof.
+  intros (R1,(S11,(S12,E1))) (R2,(S21,(S22,E2))).
+  split with (x:=fun x z => exists y, R1 x y /\ R2 y z).
+  split; try split.
+  - intros p q (y,(R1y,R2y)) p' a tpp'.
+    unfold Simulation in S11,S21.
+    apply S11 with (p':=p') (a:=a) in R1y; try easy.
+    destruct R1y as (y', (tyy', R')).
+    apply S21 with (p':=y') (a:=a) in R2y; try easy.
+    destruct R2y as (q', (ty'q, R'')).
+    exists q'.
+    split; try easy.
+    exists y'; easy.
+  - intros p q (y,(R1y,R2y)) p' a tpp'.
+    unfold Simulation in S12,S22.
+    apply S22 with (p':=p') (a:=a) in R2y; try easy.
+    destruct R2y as (y', (tyy', R')).
+    apply S12 with (p':=y') (a:=a) in R1y; try easy.
+    destruct R1y as (q', (ty'q, R'')).
+    exists q'.
+    split; try easy.
+    exists y'; easy.
+  - now exists (Y.(start)).
 Qed.
