@@ -81,3 +81,12 @@ Definition lts_of_es (Lbl:Set) (E:ES Lbl) : LTS Lbl :=
         let x' := proj1_sig c in
         exists e, (x'=Add _ x e /\ Configuration E (Add _ x e) /\ not (In _ x e) /\ E.(lbl) e = a) in
   mkLTS t (empty _).
+
+Theorem empty_bisim (Lbl:Set) : Bisimilar (empty_lts Lbl) (lts_of_es (empty_es Lbl)).
+Proof.
+  unfold Bisimilar.
+  exists (fun _ _ => True).
+  split; try split; try easy.
+  intros p q rpq p' a (false,tpp').
+  easy.
+Qed.
