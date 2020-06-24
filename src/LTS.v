@@ -113,3 +113,41 @@ Proof.
     exists y'; easy.
   - now exists (Y.(start)).
 Qed.
+
+Require Import Coq.Logic.Eqdep_dec.
+
+Module ArbitraryLTS(M:DecidableSet).
+
+  Module DEqDep := DecidableEqDepSet(M).
+
+  Import M.
+
+  Theorem par_bisim_morphism (Lbl: Set) (F1 F2 : U -> LTS Lbl) :
+    (forall i, Bisimilar (F1 i) (F2 i)) -> Bisimilar (par_arbitrary_lts F1) (par_arbitrary_lts F2).
+  Proof.
+    intros H.
+    unfold Bisimilar in H.
+    exists (fun x y => forall i, proj1_sig (H i) (x i) (y i)).
+    split; try split.
+    3:intros i;now destruct (H i) as (R,(S1,(S2,Hi))).
+    all:intros p q rpq p' a (i,(H1,H2));
+      generalize rpq; intros rpq'; specialize rpq with i;
+        destruct (H i) as (R,(S1,(S2,S3))) eqn:eq ; simpl in *;
+          unfold Simulation in S1,S2.
+    1:apply S1 with (q:=q i) in H1; try easy.
+    2:apply S2 with (q:=q i) in H1; try easy.
+    all:destruct H1 as (q',H1).
+    1:exists (fun j => match eq_dec i j with | left H => cast H (StateOf F2) q' | right _ => q j end).
+    2:exists (fun j => match eq_dec i j with | left H => cast H (StateOf F1) q' | right _ => q j end).
+    all:split.
+    1,3:
+      exists i;
+      split ; [ destruct (eq_dec i i); try congruence; rewrite (DEqDep.UIP_refl _ e); intuition
+              | intros j n; destruct (eq_dec i j); congruence].
+    all:
+      intros j; destruct (eq_dec i j);
+      [ destruct e; rewrite eq; simpl; intuition
+      | apply H2 in n; rewrite <- n; apply rpq'].
+  Qed.
+
+End ArbitraryLTS.

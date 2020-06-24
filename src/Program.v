@@ -22,14 +22,16 @@ Definition interp_thread_aux A N (prefixing : A -> mem_op N -> A) sum (i: instru
 Definition interp_thread A (N:Set) prefixing sum (empty : A) : thread N -> A :=
   fold_right (interp_thread_aux prefixing sum) empty.
 
-Definition interp A (N:Set) parallel prefixing sum (empty : A) (p : program N) : A :=
-  parallel (fun i => nth i (map (interp_thread prefixing sum empty) p) empty).
+Definition interp A (N:Set) parallel (interp_thread : thread N -> A) (p : program N) : A :=
+  parallel (fun i => interp_thread (nth i p nil)).
 
 Require Import Causality.LTS.
 
+Definition interp_thread_lts (N:Set) : thread N -> LTS (mem_op N) :=
+  interp_thread (@prefixing_lts _) (@sum_arbitrary_lts _ _) (empty_lts _).
+
 Definition interp_lts (N:Set) : program N -> LTS (mem_op N) :=
-  interp (@par_arbitrary_lts _ _)
-         (@prefixing_lts _) (@sum_arbitrary_lts _ _) (empty_lts _).
+  interp (@par_arbitrary_lts _ _) (@interp_thread_lts N).
 
 Require Import Causality.ES.Definition.
 Require Import Causality.ES.Prefixing.
@@ -47,5 +49,19 @@ End NatDecSet.
 Module Par := ArbitraryParallel(NatDecSet).
 Module Sum := ArbitrarySum(NatDecSet).
 
+Definition interp_thread_es (N:Set) : thread N -> ES (mem_op N) :=
+  interp_thread (@prefixing_es _) (@Sum.sum_arbitrary_es _) (empty_es _).
+
 Definition interp_es (N:Set) : program N -> ES (mem_op N) :=
-  interp (@Par.par_arbitrary_es _) (@prefixing_es _) (@Sum.sum_arbitrary_es _) (empty_es _).
+  interp (@Par.par_arbitrary_es _) (@interp_thread_es N).
+
+Module ALTS := ArbitraryLTS(NatDecSet).
+
+Theorem interp_ok (N:Set) (p:program N) : Bisimilar (interp_lts p) (lts_of_es (interp_es p)).
+Proof.
+  apply bisim_trans with
+    (Y:=(@par_arbitrary_lts _ _) (fun i => lts_of_es (interp_thread_es  (nth i p nil))));
+    try apply Par.par_arbitrary_bisim.
+  apply ALTS.par_bisim_morphism.
+  intros i.
+Admitted.
