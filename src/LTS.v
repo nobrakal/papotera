@@ -93,25 +93,18 @@ Proof.
   intros (R1,(S11,(S12,E1))) (R2,(S21,(S22,E2))).
   split with (x:=fun x z => exists y, R1 x y /\ R2 y z).
   split; try split.
-  - intros p q (y,(R1y,R2y)) p' a tpp'.
-    unfold Simulation in S11,S21.
-    apply S11 with (p':=p') (a:=a) in R1y; try easy.
-    destruct R1y as (y', (tyy', R')).
-    apply S21 with (p':=y') (a:=a) in R2y; try easy.
-    destruct R2y as (q', (ty'q, R'')).
-    exists q'.
-    split; try easy.
-    exists y'; easy.
-  - intros p q (y,(R1y,R2y)) p' a tpp'.
-    unfold Simulation in S12,S22.
-    apply S22 with (p':=p') (a:=a) in R2y; try easy.
-    destruct R2y as (y', (tyy', R')).
-    apply S12 with (p':=y') (a:=a) in R1y; try easy.
+  3: now exists (Y.(start)).
+  all:intros p q (y,(R1y,R2y)) p' a tpp';
+    unfold Simulation in *.
+  1:apply S11 with (p':=p') (a:=a) in R1y; try easy;
+    destruct R1y as (y', (tyy', R'));
+    apply S21 with (p':=y') (a:=a) in R2y; try easy;
+      destruct R2y as (q', (ty'q, R'')).
+  2:apply S22 with (p':=p') (a:=a) in R2y; try easy;
+    destruct R2y as (y', (tyy', R'));
+    apply S12 with (p':=y') (a:=a) in R1y; try easy;
     destruct R1y as (q', (ty'q, R'')).
-    exists q'.
-    split; try easy.
-    exists y'; easy.
-  - now exists (Y.(start)).
+  all: exists q'; split; try easy; exists y'; easy.
 Qed.
 
 Definition par_opt A B (R: A -> B -> Prop) (x: option A) (y:option B) :=
