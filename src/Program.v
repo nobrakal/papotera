@@ -66,7 +66,7 @@ Proof.
   - destruct a; simpl.
     + apply bisim_trans with (Y:=prefixing_lts (lts_of_es (interp_thread_es t)) (Write n n0)).
       * now apply prefixing_bisim_morphism.
-      * now apply prefixing_bisim.
+      * now apply prefixing_ok.
     + apply bisim_trans with
           (Y:=@sum_arbitrary_lts
                 _ _ (fun n => lts_of_es (prefixing_es (interp_thread_es t) (Read n0 n)))).
@@ -75,8 +75,8 @@ Proof.
         apply bisim_trans with
             (Y:= prefixing_lts (lts_of_es (interp_thread_es t)) (Read n0 i)).
         -- now apply prefixing_bisim_morphism.
-        -- apply prefixing_bisim.
-      * apply Sum.sum_arbitrary_bisim.
+        -- apply prefixing_ok.
+      * apply Sum.sum_arbitrary_ok.
 Qed.
 
 Theorem interp_ok (N:Set) (p:program N) : Bisimilar (interp_lts p) (lts_of_es (interp_es p)).
@@ -86,5 +86,5 @@ Proof.
   - apply ALTS.par_bisim_morphism.
     intros i.
     apply interp_thread_ok.
-  - apply Par.par_arbitrary_bisim.
+  - apply Par.par_arbitrary_ok.
 Qed.

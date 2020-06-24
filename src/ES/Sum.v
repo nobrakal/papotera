@@ -382,7 +382,7 @@ Module ArbitrarySum(M:DecidableSet).
                destruct E; intuition.
     Qed.
 
-    Theorem sum_arbitrary_bisim :
+    Theorem sum_arbitrary_ok :
       Bisimilar (sum_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (sum_arbitrary_es Family)).
     Proof.
       exists therel.

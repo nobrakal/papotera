@@ -185,7 +185,7 @@ Section PrefixingCorrect.
         now rewrite H1, Add_none_empty, rqp.
   Qed.
 
-  Theorem prefixing_bisim :
+  Theorem prefixing_ok :
     Bisimilar (prefixing_lts (lts_of_es E) a) (lts_of_es (prefixing_es E a)).
   Proof.
     exists therel.

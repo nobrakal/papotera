@@ -459,7 +459,7 @@ Module ArbitraryParallel(M:DecidableSet).
       split; [intros i ix | intros (H,i) ix]; now apply Noone_in_empty in ix.
     Qed.
 
-    Theorem par_arbitrary_bisim :
+    Theorem par_arbitrary_ok :
       Bisimilar (par_arbitrary_lts (compose (@lts_of_es Lbl) Family)) (lts_of_es (par_arbitrary_es Family)).
     Proof.
       exists (fun x y => y = union_arbitrary_ens x).
