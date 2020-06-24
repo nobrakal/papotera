@@ -23,7 +23,11 @@ Lemma par_order A B (ra : relation A) (ra_o:order A ra) (rb : relation B) (rb_o:
 Proof.
   split.
   - intros x; case x; firstorder.
-  - intros x y z rxy ryz; case x,y,z; firstorder.
+  - intros x y z rxy ryz.
+    destruct ra_o as (A1,A2,A3), rb_o as (B1,B2,B3).
+    unfold transitive in A2,B2.
+    destruct x,y,z; try easy; simpl in *;
+      [now apply A2 with (y:=a0) | now apply B2 with (y:=b0)].
   - intros x y rxy ryx.
     case x,y; simpl in *; try easy; f_equal; firstorder.
 Qed.
