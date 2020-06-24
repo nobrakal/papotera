@@ -114,6 +114,30 @@ Proof.
   - now exists (Y.(start)).
 Qed.
 
+Definition par_opt A B (R: A -> B -> Prop) (x: option A) (y:option B) :=
+  match x,y with
+  | None, None => True
+  | Some x, Some y => R x y
+  | _,_ => False end.
+
+Theorem prefixing_bisim_morphism (Lbl:Set) (X Y:LTS Lbl) (a:Lbl) :
+  Bisimilar X Y -> Bisimilar (prefixing_lts X a) (prefixing_lts Y a).
+Proof.
+  intros (R,(SR1,(SR2,SR3))).
+  unfold Simulation in SR1,SR2.
+  exists (par_opt R).
+  split; try split; try easy.
+  all:intros p q rpq p' a' tpp';
+    destruct p as [p|],q as [q|],p' as [p'|]; try easy.
+  1:apply SR1 with (q:=q) in tpp'; try easy.
+  3:apply SR2 with (q:=q) in tpp'; try easy.
+  1,3:destruct tpp' as (q',(H1,H2)); exists (Some q'); intuition.
+  all:destruct tpp' as (H1,H2).
+  1:exists (Some (start Y)).
+  2:exists (Some (start X)).
+  all: split; [now rewrite H2|now rewrite H1].
+Qed.
+
 Require Import Coq.Logic.Eqdep_dec.
 
 Module ArbitraryLTS(M:DecidableSet).
@@ -150,28 +174,11 @@ Module ArbitraryLTS(M:DecidableSet).
       | apply H2 in n; rewrite <- n; apply rpq'].
   Qed.
 
+  Theorem sum_bisim_morphism (Lbl: Set) (F1 F2 : U -> LTS Lbl) :
+    (forall i, Bisimilar (F1 i) (F2 i)) -> Bisimilar (sum_arbitrary_lts F1) (sum_arbitrary_lts F2).
+  Proof.
+   intros H.
+   unfold Bisimilar in H.
+  Admitted.
+
 End ArbitraryLTS.
-
-Definition par_opt A B (R: A -> B -> Prop) (x: option A) (y:option B) :=
-  match x,y with
-  | None, None => True
-  | Some x, Some y => R x y
-  | _,_ => False end.
-
-Theorem prefixing_bisim_morphism (Lbl:Set) (X Y:LTS Lbl) (a:Lbl) :
-  Bisimilar X Y -> Bisimilar (prefixing_lts X a) (prefixing_lts Y a).
-Proof.
-  intros (R,(SR1,(SR2,SR3))).
-  unfold Simulation in SR1,SR2.
-  exists (par_opt R).
-  split; try split; try easy.
-  all:intros p q rpq p' a' tpp';
-    destruct p as [p|],q as [q|],p' as [p'|]; try easy.
-  1:apply SR1 with (q:=q) in tpp'; try easy.
-  3:apply SR2 with (q:=q) in tpp'; try easy.
-  1,3:destruct tpp' as (q',(H1,H2)); exists (Some q'); intuition.
-  all:destruct tpp' as (H1,H2).
-  1:exists (Some (start Y)).
-  2:exists (Some (start X)).
-  all: split; [now rewrite H2|now rewrite H1].
-Qed.

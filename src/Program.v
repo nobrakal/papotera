@@ -64,12 +64,20 @@ Proof.
   induction t.
   - apply empty_bisim.
   - destruct a; simpl.
-    + simpl.
-      apply bisim_trans with (Y:=prefixing_lts (lts_of_es (interp_thread_es t)) (Write n n0)).
+    + apply bisim_trans with (Y:=prefixing_lts (lts_of_es (interp_thread_es t)) (Write n n0)).
       * now apply prefixing_bisim_morphism.
       * now apply prefixing_bisim.
-    + admit.
-Admitted.
+    + apply bisim_trans with
+          (Y:=@sum_arbitrary_lts
+                _ _ (fun n => lts_of_es (prefixing_es (interp_thread_es t) (Read n0 n)))).
+      * apply ALTS.sum_bisim_morphism.
+        intros i.
+        apply bisim_trans with
+            (Y:= prefixing_lts (lts_of_es (interp_thread_es t)) (Read n0 i)).
+        -- now apply prefixing_bisim_morphism.
+        -- apply prefixing_bisim.
+      * apply Sum.sum_arbitrary_bisim.
+Qed.
 
 Theorem interp_ok (N:Set) (p:program N) : Bisimilar (interp_lts p) (lts_of_es (interp_es p)).
 Proof.
