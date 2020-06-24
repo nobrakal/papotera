@@ -57,11 +57,26 @@ Definition interp_es (N:Set) : program N -> ES (mem_op N) :=
 
 Module ALTS := ArbitraryLTS(NatDecSet).
 
+Lemma interp_thread_ok (N:Set) (t:thread N) :
+  Bisimilar (fold_right (interp_thread_aux (@prefixing_lts _) (@sum_arbitrary_lts _ _)) (empty_lts _) t)
+            (lts_of_es (interp_thread_es t)).
+Proof.
+  induction t.
+  - apply empty_bisim.
+  - destruct a; simpl.
+    + simpl.
+      apply bisim_trans with (Y:=prefixing_lts (lts_of_es (interp_thread_es t)) (Write n n0)).
+      * now apply prefixing_bisim_morphism.
+      * now apply prefixing_bisim.
+    + admit.
+Admitted.
+
 Theorem interp_ok (N:Set) (p:program N) : Bisimilar (interp_lts p) (lts_of_es (interp_es p)).
 Proof.
   apply bisim_trans with
-    (Y:=(@par_arbitrary_lts _ _) (fun i => lts_of_es (interp_thread_es  (nth i p nil))));
-    try apply Par.par_arbitrary_bisim.
-  apply ALTS.par_bisim_morphism.
-  intros i.
-Admitted.
+      (Y:=(@par_arbitrary_lts _ _) (fun i => lts_of_es (interp_thread_es (nth i p nil)))).
+  - apply ALTS.par_bisim_morphism.
+    intros i.
+    apply interp_thread_ok.
+  - apply Par.par_arbitrary_bisim.
+Qed.
