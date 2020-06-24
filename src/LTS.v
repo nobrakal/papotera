@@ -179,6 +179,38 @@ Module ArbitraryLTS(M:DecidableSet).
   Proof.
    intros H.
    unfold Bisimilar in H.
-  Admitted.
+   exists (par_opt (fun x y => exists (E:projT1 y = projT1 x),
+                        proj1_sig (H (projT1 x)) (projT2 x)
+                                  (cast E (StateOf F2) (projT2 y)))).
+   split; try split; try easy;
+     intros p q rpq p' a tpp';
+     destruct p as [(i,p)|], p' as [(j,p')|], q as [(k,q)|]; simpl in *; try easy.
+   - destruct tpp' as (E,tpp'),E, rpq as (E,rpq),E.
+     destruct (H k) as (R,(S1,(S2,S3))).
+     unfold Simulation in S1.
+     apply S1 with (q:=q) in tpp'; try easy.
+     destruct tpp' as (q',(H1,H2)).
+     exists (Some (existT _ k q')); split;
+       exists (eq_refl k); intuition.
+   - destruct (H j) as (R,(S1,(S2,S3))).
+       unfold Simulation in S1.
+       apply S1 with (q:=start (F2 j)) in tpp'; try easy.
+       destruct tpp' as (q', H').
+       exists (Some (existT _ j q')); intuition.
+       exists (eq_refl j); intuition.
+   - destruct tpp' as (E,tpp'),E, rpq as (E,rpq),E.
+     destruct (H j) as (R,(S1,(S2,S3))) eqn:eq.
+     unfold Simulation in S2.
+     apply S2 with (q:=q) in tpp'; try easy.
+     destruct tpp' as (q',(H1,H2)).
+     exists (Some (existT _ j q')); split;
+       exists (eq_refl j); simpl; try rewrite eq; intuition.
+   - destruct (H j) as (R,(S1,(S2,S3))) eqn:eq.
+     unfold Simulation in S2.
+     apply S2 with (q:=start (F1 j)) in tpp'; try easy.
+     destruct tpp' as (q', H').
+     exists (Some (existT _ j q')); intuition.
+     exists (eq_refl j); simpl; rewrite eq; intuition.
+  Qed.
 
 End ArbitraryLTS.
