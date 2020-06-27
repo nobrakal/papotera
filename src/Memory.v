@@ -131,21 +131,32 @@ Require Import Coq.Logic.Eqdep_dec.
 Require Import Causality.ES.Parallel.
 
 Module InterpMemES(NS:DecidableSet).
-  Module Par := ArbitraryParallel(NS).
 
-  Import NS.
-
-  Definition interp_mem_es (mu:mem_state U) : ES (mem_op U) :=
-    Par.par_arbitrary_es (fun i => interp_val_es i (mu i)).
 End InterpMemES.
 
 Module InterpMemOK(NS:DecidableSet).
   Import NS.
 
-  Module ES := InterpMemES(NS).
+  Module Par := ArbitraryParallel(NS).
 
-  Theorem interp_mem_ok (mu:mem_state U) :
-    Bisimilar (interp_mem_lts mu) (lts_of_es (ES.interp_mem_es mu)).
+  Definition interp_mem_es (mu:mem_state U) : ES (mem_op U) :=
+    Par.par_arbitrary_es (fun i => interp_val_es i (mu i)).
+
+  Module ALTS := ArbitraryLTS(NS).
+
+  Lemma interp_val_ok (x:U) (mu:nat) :
+    Bisimilar (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)).
   Proof.
   Admitted.
+
+  Theorem interp_mem_ok (mu:mem_state U) :
+    Bisimilar (interp_mem_lts mu) (lts_of_es (interp_mem_es mu)).
+  Proof.
+    apply bisim_trans with (Y:=par_arbitrary_lts (fun i => lts_of_es (interp_val_es i (mu i)))).
+    - apply ALTS.par_bisim_morphism.
+      intros i.
+      apply interp_val_ok.
+    - apply Par.par_arbitrary_ok.
+  Qed.
+
 End InterpMemOK.
