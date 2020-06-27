@@ -51,7 +51,7 @@ Qed.
 Definition par_es Lbl (E:ES Lbl) (F:ES Lbl) :=
   let cmp_order := par_order E.(cmp_ord) F.(cmp_ord) in
   let cfl_conflict := par_conflict E.(cfl_conflict) F.(cfl_conflict) in
-  let inherit := par_inherit E.(inherit)  F.(inherit) in
+  let inherit := par_inherit E.(inherit) F.(inherit) in
   let lbl := either E.(lbl) F.(lbl) in
   mkES cmp_order cfl_conflict inherit lbl.
 

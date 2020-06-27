@@ -6,3 +6,4 @@ src/ES/Parallel.v
 src/ES/Sum.v
 src/ES/Prefixing.v
 src/Program.v
+src/Memory.v
