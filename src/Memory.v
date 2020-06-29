@@ -66,6 +66,21 @@ Proof.
       now apply IHx.
 Qed.
 
+Lemma prefix_app A (xs ys : list A) : prefix xs (xs++ys).
+Proof. induction xs; firstorder. Qed.
+
+Lemma prefix_napp A (xs ys : list A) : ys <> [] -> ~ (prefix (xs++ys) xs).
+Proof.
+  intros H.
+  apply exists_last in H; destruct H as (H1,(zs,H2)).
+  rewrite H2.
+  intros Z.
+  induction xs; simpl in *.
+  - destruct (H1 ++ [zs]) eqn:eq; try easy.
+    now destruct H1.
+  - firstorder.
+Qed.
+
 Definition lift_rel A (R:relation A) (P:A -> Prop) : relation (sig P) :=
   fun x y => R (proj1_sig x) (proj1_sig y).
 
@@ -129,9 +144,9 @@ Qed.
 Definition interp_val_es (N:Set) (x:N) (mu:nat) : ES (mem_op N) :=
   let lbl '(exist _ l H) := proj1_sig (projT2 (@exists_last _ l (proj1 H))) in
   @mkES _ {xs | xs <> nil /\ trace_ok x mu xs} _
-    (restrict_order (@prefix_order _) _) _
-    (restrict_cfl (@noprefix_cfl _) _)
-    (@restrict_inherit _ _ _ (@prefix_noprefix_inherit _) _) lbl.
+        (restrict_order (@prefix_order _) _) _
+        (restrict_cfl (@noprefix_cfl _) _)
+        (@restrict_inherit _ _ _ (@prefix_noprefix_inherit _) _) lbl.
 
 Require Import Coq.Logic.Eqdep_dec.
 Require Import Causality.ES.Parallel.
@@ -141,6 +156,11 @@ Module InterpMemES(NS:DecidableSet).
 End InterpMemES.
 
 Require Import Coq.Sets.Constructive_sets.
+
+Lemma add_two_elem A xs (a b:A) : xs ++ [a;b] = xs ++ [a] ++ [b].
+Proof. firstorder. Qed.
+
+Definition majorant A (E:Ensemble A) (x:A) (R:relation A) := forall y, In _ E y -> R y x.
 
 Module InterpMemOK(NS:DecidableSet).
   Import NS.
@@ -152,10 +172,134 @@ Module InterpMemOK(NS:DecidableSet).
 
   Module ALTS := ArbitraryLTS(NS).
 
-  Lemma interp_val_ok (x:U) (mu:nat) :
-    Bisimilar (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)).
-  Proof.
-  Admitted.
+  Section WithEM.
+
+    Variables (x:U) (mu:nat).
+
+    Definition therel : State (interp_val_lts x mu) -> State (lts_of_es (interp_val_es x mu)) -> Prop :=
+      fun x Y =>
+        exists y,
+          In _ (proj1_sig Y) y /\
+          x = nat_of_mem_op (proj1_sig (projT2 (@exists_last _ (proj1_sig y) (proj1 (proj2_sig y)))))
+          /\ majorant (proj1_sig Y) y (@lift_rel _ (@prefix _) _).
+
+    Lemma trace_ok_pre (a:mem_op U) ys : trace_ok x mu (ys ++ [a]) -> trace_ok x mu ys.
+    Proof.
+      revert mu; induction ys; try easy.
+      intros H; destruct a0; firstorder.
+    Qed.
+
+    Lemma trace_ok_next (a a': mem_op U) ys p' (tpp':next_candidate x (nat_of_mem_op a') p' a) : trace_ok x mu (ys++[a']) -> trace_ok x mu (ys++[a';a]).
+    Proof.
+      revert mu.
+      induction ys.
+      - intros mu H.
+        destruct a'.
+        + destruct H as (H1,(H2,H3)); split; try split; try easy.
+          destruct a; simpl in tpp'; split; try split; try easy.
+          destruct tpp' as (H4,(H5,H6)).
+          now rewrite <- H6, H5.
+        + destruct H as (H1,H2).
+          split; try easy.
+          destruct a; simpl in tpp'; split; try split; try easy.
+          destruct tpp' as (H4,(H5,H6)).
+          now rewrite <- H6, H5.
+      - intros mu H; simpl in *; destruct a0; firstorder.
+    Qed.
+
+    Program Definition add_next_cand (a a': mem_op U) ys (H:trace_ok x mu (ys++[a'])) p' (tpp':next_candidate x (nat_of_mem_op a') p' a) :
+      {xs | xs <> [] /\ trace_ok x mu xs} :=
+      exist _ (ys ++ [a';a]) _.
+
+    Next Obligation.
+      split.
+      - intros E; now apply app_eq_nil in E.
+      - now apply trace_ok_next with p'.
+    Qed.
+
+    Lemma config_1 q a a' ys ys' H Hys p' tpp' :
+      ys = ys' ++ [a']
+      -> majorant q (exist (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs) ys Hys)
+               (@lift_rel _ (@prefix (mem_op U)) (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs))
+      -> Configuration (interp_val_es x mu) q
+      -> Configuration (interp_val_es x mu) (Add _ q (add_next_cand a a' ys' H p' tpp')).
+    Proof.
+      intros E M (D,C).
+      split.
+      - intros y iy z iz.
+        apply Add_inv in iy.
+        destruct iy as [iy|iy].
+        + generalize iy; intros iy'.
+          unfold majorant in M.
+          apply M in iy.
+          unfold downclosed in D.
+          specialize D with y z.
+          now apply Add_intro1, D.
+        + admit. (* TODO contradiction majorant *)
+      - intros y z iy iz cyz.
+    Admitted.
+
+    Lemma interp_val_sim_1 :
+      Simulation (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)) therel.
+    Proof.
+      intros p (q,Confq) ((ys,Hys),(R1,(R2,R3))) p' a tpp'; simpl in *.
+      destruct (exists_last (proj1 Hys)) as (ys',(a',E)); simpl in *.
+      generalize Hys; intros (Hys1,Hys2).
+      rewrite R2 in tpp'; rewrite E in Hys2.
+      generalize Hys2; intros Hys2'.
+      apply trace_ok_pre in Hys2.
+      unfold lift_rel in R3.
+      exists (exist  _ (Add _ q (add_next_cand a a' ys' Hys2' p' tpp')) (config_1 a a' ys' Hys2' p' tpp' E R3 Confq)).
+      destruct (@prefix_order (mem_op U)).
+      unfold majorant,lift_rel in *;
+        split.
+      - exists (add_next_cand a a' ys' Hys2' p' tpp'); split; try split.
+        + now apply config_1 with ys Hys.
+        + split.
+          * intros H.
+             apply R3 in H; simpl in H.
+             rewrite add_two_elem,app_assoc, <- E in H.
+             assert (~ (prefix (ys ++ [a]) ys)).
+             apply prefix_napp; easy.
+             congruence.
+          * simpl.
+             destruct (exists_last (proj1 (add_next_cand_obligation_1 a a' ys' Hys2' p' tpp'))) as (k,(l,H));
+               simpl.
+             rewrite add_two_elem,app_assoc in H.
+             apply app_inj_tail in H; intuition.
+      - unfold therel; simpl.
+        exists (add_next_cand a a' ys' Hys2' p' tpp'); split; try split.
+        + apply Add_intro2.
+        + destruct (exists_last (proj1 (proj2_sig (add_next_cand a a' ys' Hys2' p' tpp')))) as (E1,(E2,E3));
+            simpl in *.
+          rewrite add_two_elem,app_assoc in E3.
+          apply app_inj_tail in E3; destruct E3 as (E31,E32),E32.
+          destruct a; simpl in *; intuition.
+        + unfold add_next_cand; simpl in *.
+          rewrite E in R3.
+          intros y Hy.
+          apply Add_inv in Hy.
+          destruct Hy.
+          * unfold transitive in ord_trans.
+            apply ord_trans with (y:=ys'++[a']).
+            now apply R3.
+            simpl.
+            rewrite add_two_elem,app_assoc.
+            apply prefix_app.
+          * rewrite <- H; simpl.
+            apply ord_refl.
+    Qed.
+
+    Lemma interp_val_ok:
+      Bisimilar (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)).
+    Proof.
+      exists therel.
+      split.
+      - apply interp_val_sim_1.
+      - admit.
+    Admitted.
+
+  End WithEM.
 
   Theorem interp_mem_ok (mu:mem_state U) :
     Bisimilar (interp_mem_lts mu) (lts_of_es (interp_mem_es mu)).
