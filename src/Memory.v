@@ -5,12 +5,14 @@ Definition mem_state (N:Set) := N -> nat.
 Require Import Causality.LTS.
 Require Import Causality.Program.
 
+Definition next_candidate (N:Set) (x:N) (n:nat) : nat -> mem_op N -> Prop :=
+  fun k a =>
+    match a with
+    | Write x' k' => x=x' /\ k=k'
+    | Read x' k' => x=x' /\ k=n /\ k=k' end.
+
 Definition interp_val_lts (N:Set) (x:N) (mu:nat) : LTS (mem_op N) :=
-  let trans n :=
-      fun '(k,a) =>
-        match a with
-        | Write x' k' => x=x' /\ k=k'
-        | Read x' k' => x=x' /\ k=n /\ k=k' end in
+  let trans n := fun '(k,a) => next_candidate x n k a in
   mkLTS trans mu.
 
 Definition interp_mem_lts (N:Set) (mu:mem_state N) : LTS (mem_op N) :=
@@ -20,6 +22,10 @@ Require Import Coq.Lists.List.
 Import ListNotations.
 
 Definition trace (N:Set) := list (mem_op N).
+
+Definition nat_of_mem_op (N:Set) (x:mem_op N) :=
+  match x with
+  | Write _ k | Read _ k => k end.
 
 Fixpoint trace_ok (N:Set) (x:N) (n:nat) (ts:trace N) :=
   match ts with
@@ -121,9 +127,9 @@ Proof.
 Qed.
 
 Definition interp_val_es (N:Set) (x:N) (mu:nat) : ES (mem_op N) :=
-  let lbl '(exist _ l neq) := proj1_sig (projT2 (@exists_last _ l neq)) in
-  mkES
-    (restrict_order (@prefix_order _) _)
+  let lbl '(exist _ l H) := proj1_sig (projT2 (@exists_last _ l (proj1 H))) in
+  @mkES _ {xs | xs <> nil /\ trace_ok x mu xs} _
+    (restrict_order (@prefix_order _) _) _
     (restrict_cfl (@noprefix_cfl _) _)
     (@restrict_inherit _ _ _ (@prefix_noprefix_inherit _) _) lbl.
 
@@ -133,6 +139,8 @@ Require Import Causality.ES.Parallel.
 Module InterpMemES(NS:DecidableSet).
 
 End InterpMemES.
+
+Require Import Coq.Sets.Constructive_sets.
 
 Module InterpMemOK(NS:DecidableSet).
   Import NS.
