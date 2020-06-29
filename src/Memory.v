@@ -290,13 +290,19 @@ Module InterpMemOK(NS:DecidableSet).
             apply ord_refl.
     Qed.
 
+    Lemma interp_val_sim_2 :
+      Simulation (lts_of_es (interp_val_es x mu)) (interp_val_lts x mu) (fun x y => therel y x).
+    Proof.
+    Admitted.
+
     Lemma interp_val_ok:
       Bisimilar (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)).
     Proof.
       exists therel.
-      split.
+      split; try split.
       - apply interp_val_sim_1.
-      - admit.
+      - apply interp_val_sim_2.
+      - admit. (* TODO This is actually false *)
     Admitted.
 
   End WithEM.
