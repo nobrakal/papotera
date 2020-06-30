@@ -1,3 +1,4 @@
+Require Import Coq.Arith.PeanoNat.
 Set Implicit Arguments.
 
 Definition mem_state (N:Set) := N -> nat.
@@ -178,6 +179,7 @@ Module InterpMemOK(NS:DecidableSet).
 
     Definition therel : State (interp_val_lts x mu) -> State (lts_of_es (interp_val_es x mu)) -> Prop :=
       fun x Y =>
+        ((x = mu) /\ Y = empty _) \/
         exists y,
           In _ (proj1_sig Y) y /\
           x = nat_of_mem_op (proj1_sig (projT2 (@exists_last _ (proj1_sig y) (proj1 (proj2_sig y)))))
@@ -242,53 +244,57 @@ Module InterpMemOK(NS:DecidableSet).
     Lemma interp_val_sim_1 :
       Simulation (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)) therel.
     Proof.
-      intros p (q,Confq) ((ys,Hys),(R1,(R2,R3))) p' a tpp'; simpl in *.
-      destruct (exists_last (proj1 Hys)) as (ys',(a',E)); simpl in *.
-      generalize Hys; intros (Hys1,Hys2).
-      rewrite R2 in tpp'; rewrite E in Hys2.
-      generalize Hys2; intros Hys2'.
-      apply trace_ok_pre in Hys2.
-      unfold lift_rel in R3.
-      exists (exist  _ (Add _ q (add_next_cand a a' ys' Hys2' p' tpp')) (config_1 a a' ys' Hys2' p' tpp' E R3 Confq)).
-      destruct (@prefix_order (mem_op U)).
-      unfold majorant,lift_rel in *;
-        split.
-      - exists (add_next_cand a a' ys' Hys2' p' tpp'); split; try split.
-        + now apply config_1 with ys Hys.
-        + split.
-          * intros H.
-             apply R3 in H; simpl in H.
-             rewrite add_two_elem,app_assoc, <- E in H.
-             assert (~ (prefix (ys ++ [a]) ys)).
-             apply prefix_napp; easy.
-             congruence.
-          * simpl.
-             destruct (exists_last (proj1 (add_next_cand_obligation_1 a a' ys' Hys2' p' tpp'))) as (k,(l,H));
-               simpl.
-             rewrite add_two_elem,app_assoc in H.
-             apply app_inj_tail in H; intuition.
-      - unfold therel; simpl.
-        exists (add_next_cand a a' ys' Hys2' p' tpp'); split; try split.
-        + apply Add_intro2.
-        + destruct (exists_last (proj1 (proj2_sig (add_next_cand a a' ys' Hys2' p' tpp')))) as (E1,(E2,E3));
-            simpl in *.
-          rewrite add_two_elem,app_assoc in E3.
-          apply app_inj_tail in E3; destruct E3 as (E31,E32),E32.
-          destruct a; simpl in *; intuition.
-        + unfold add_next_cand; simpl in *.
-          rewrite E in R3.
-          intros y Hy.
-          apply Add_inv in Hy.
-          destruct Hy.
-          * unfold transitive in ord_trans.
-            apply ord_trans with (y:=ys'++[a']).
-            now apply R3.
-            simpl.
-            rewrite add_two_elem,app_assoc.
-            apply prefix_app.
-          * rewrite <- H; simpl.
-            apply ord_refl.
-    Qed.
+      intros p (q,Confq) rpq (* ((ys,Hys),(R1,(R2,R3))) *) p' a tpp'; simpl in *.
+      destruct rpq as [rpq|rpq].
+      - admit.
+      - destruct rpq as ((ys,Hys),(R1,(R2,R3))); simpl in *.
+        destruct (exists_last (proj1 Hys)) as (ys',(a',E)); simpl in *.
+        generalize Hys; intros (Hys1,Hys2).
+        rewrite R2 in tpp'; rewrite E in Hys2.
+        generalize Hys2; intros Hys2'.
+        apply trace_ok_pre in Hys2.
+        unfold lift_rel in R3.
+        exists (exist  _ (Add _ q (add_next_cand a a' ys' Hys2' p' tpp')) (config_1 a a' ys' Hys2' p' tpp' E R3 Confq)).
+        destruct (@prefix_order (mem_op U)).
+        unfold majorant,lift_rel in *;
+          split.
+        + exists (add_next_cand a a' ys' Hys2' p' tpp'); split; try split.
+          * now apply config_1 with ys Hys.
+          * split.
+            -- intros H.
+               apply R3 in H; simpl in H.
+               rewrite add_two_elem,app_assoc, <- E in H.
+               assert (~ (prefix (ys ++ [a]) ys)).
+               apply prefix_napp; easy.
+               congruence.
+            -- simpl.
+               destruct (exists_last (proj1 (add_next_cand_obligation_1 a a' ys' Hys2' p' tpp'))) as (k,(l,H));
+                 simpl.
+               rewrite add_two_elem,app_assoc in H.
+               apply app_inj_tail in H; intuition.
+        + unfold therel; simpl.
+          right.
+          * exists (add_next_cand a a' ys' Hys2' p' tpp'); split; try split.
+            -- apply Add_intro2.
+            -- destruct (exists_last (proj1 (proj2_sig (add_next_cand a a' ys' Hys2' p' tpp')))) as (E1,(E2,E3));
+                 simpl in *.
+               rewrite add_two_elem,app_assoc in E3.
+               apply app_inj_tail in E3; destruct E3 as (E31,E32),E32.
+               destruct a; simpl in *; intuition.
+            -- unfold add_next_cand; simpl in *.
+               rewrite E in R3.
+               intros y Hy.
+               apply Add_inv in Hy.
+               destruct Hy.
+               ++ unfold transitive in ord_trans.
+                  apply ord_trans with (y:=ys'++[a']).
+                  now apply R3.
+                  simpl.
+                  rewrite add_two_elem,app_assoc.
+                  apply prefix_app.
+               ++ rewrite <- H; simpl.
+                  apply ord_refl.
+    Admitted.
 
     Lemma interp_val_sim_2 :
       Simulation (lts_of_es (interp_val_es x mu)) (interp_val_lts x mu) (fun x y => therel y x).
@@ -302,7 +308,7 @@ Module InterpMemOK(NS:DecidableSet).
       split; try split.
       - apply interp_val_sim_1.
       - apply interp_val_sim_2.
-      - admit. (* TODO This is actually false *)
+      - left; easy.
     Admitted.
 
   End WithEM.
