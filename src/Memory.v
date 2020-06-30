@@ -82,6 +82,51 @@ Proof.
   - firstorder.
 Qed.
 
+Lemma prefix_ex A (xs ys:list A) : prefix xs ys -> exists zs, ys= xs ++ zs.
+Proof.
+  revert ys.
+  induction xs; intros ys H.
+  - exists ys; intuition.
+  - destruct ys; simpl in H; try easy.
+    destruct H as (E,H).
+    apply IHxs in H.
+    destruct H as (zs,H).
+    exists zs.
+    now rewrite E, <- app_comm_cons; f_equal.
+Qed.
+
+Lemma neq_extend A (xs ys:list A) a : a::xs <> a::ys -> xs <> ys.
+Proof.
+  intros H P.
+  apply H.
+  now rewrite P.
+Qed.
+
+Lemma prefix_extend A (xs ys:list A) a : xs<>ys++[a] -> prefix xs (ys ++ [a]) -> prefix xs ys.
+Proof.
+  revert ys; induction xs.
+  - easy.
+  - intros ys H P.
+    destruct (ys++[a]) eqn:eq; try easy.
+    simpl in P; destruct P as (E,P),E.
+    apply neq_extend in H.
+    destruct ys.
+    + simpl in eq.
+      assert (l=[]) as E.
+      * apply (@f_equal _ _ (@length _) [a] (a0::l)) in eq.
+        injection eq; intros E.
+        symmetry in E.
+        now apply length_zero_iff_nil in E.
+      * rewrite E in *.
+        now destruct xs.
+    + rewrite <- app_comm_cons in eq.
+      injection eq; intros H1 H2.
+      destruct H2.
+      rewrite <- H1 in *.
+      simpl; split; try easy.
+      now apply IHxs.
+Qed.
+
 Definition lift_rel A (R:relation A) (P:A -> Prop) : relation (sig P) :=
   fun x y => R (proj1_sig x) (proj1_sig y).
 
@@ -161,6 +206,16 @@ Require Import Coq.Sets.Constructive_sets.
 Lemma add_two_elem A xs (a b:A) : xs ++ [a;b] = xs ++ [a] ++ [b].
 Proof. firstorder. Qed.
 
+Lemma app_inj_l A (xs ys zs : list A) : xs ++ ys = xs ++zs -> ys =zs.
+Proof.
+  revert ys zs.
+  induction xs;try easy.
+  intros ys zs H.
+  do 2 rewrite <- app_comm_cons in H.
+  injection H; intros H1.
+  now apply IHxs.
+Qed.
+
 Definition majorant A (E:Ensemble A) (x:A) (R:relation A) := forall y, In _ E y -> R y x.
 
 Module InterpMemOK(NS:DecidableSet).
@@ -220,26 +275,80 @@ Module InterpMemOK(NS:DecidableSet).
     Qed.
 
     Lemma config_1 q a a' ys ys' H Hys p' tpp' :
-      ys = ys' ++ [a']
-      -> majorant q (exist (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs) ys Hys)
-               (@lift_rel _ (@prefix (mem_op U)) (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs))
+      In _ q ys
+      -> majorant q (exist (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs) (proj1_sig ys) Hys)
+                  (@lift_rel _ (@prefix (mem_op U)) (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs))
+      -> proj1_sig ys = ys' ++ [a']
       -> Configuration (interp_val_es x mu) q
       -> Configuration (interp_val_es x mu) (Add _ q (add_next_cand a a' ys' H p' tpp')).
     Proof.
-      intros E M (D,C).
+      intros Iys M E (D,C).
       split.
       - intros y iy z iz.
+        unfold downclosed in D.
         apply Add_inv in iy.
         destruct iy as [iy|iy].
-        + generalize iy; intros iy'.
+        + specialize D with y z.
+          generalize iy; intros iy'.
           unfold majorant in M.
           apply M in iy.
-          unfold downclosed in D.
-          specialize D with y z.
           now apply Add_intro1, D.
-        + admit. (* TODO contradiction majorant *)
+        + unfold cmp,interp_val_es,lift_rel in iz.
+          generalize iz; intros iz'.
+          apply prefix_ex in iz.
+          destruct iz as (zs,iz).
+          destruct zs.
+          * rewrite app_nil_r in iz.
+            assert (y=z) as R by (now apply specif_eq).
+            rewrite <-R, <- iy;intuition.
+          * specialize D with ys z.
+            left.
+            apply D; try easy.
+            unfold cmp,interp_val_es,lift_rel.
+            destruct z as (z,Hz), y as (y,Hy), ys as (ys,HH); simpl in *.
+            unfold add_next_cand in iy; apply proj1_sig_eq in iy; simpl in iy.
+            rewrite E.
+            rewrite <- iy in iz'.
+            apply prefix_extend with a; rewrite <- app_assoc,<- add_two_elem; try easy.
+            intros P.
+            rewrite P, iy in iz.
+            assert (y=y++[]) as Y by (now rewrite app_nil_r).
+            rewrite Y in iz at 1.
+            apply app_inj_l in iz.
+            congruence.
       - intros y z iy iz cyz.
-    Admitted.
+        apply Add_inv in iy.
+        apply Add_inv in iz.
+        unfold cfl, interp_val_es,lift_rel in cyz.
+        destruct cyz as (C1,C2).
+        destruct (@prefix_order (mem_op U)).
+        unfold transitive in ord_trans.
+        destruct iy as [iy|iy],iz as [iz|iz].
+        + unfold conflict_free,not in C.
+          now apply C with y z.
+        + apply proj1_sig_eq in iz.
+          unfold majorant in M; apply M in iy.
+          unfold lift_rel in iy.
+          destruct y as (y,Hy), z as (z,Hz); simpl in *.
+          apply C1.
+          apply ord_trans with (proj1_sig ys); try easy.
+          rewrite E, <- iz, add_two_elem,app_assoc.
+          apply prefix_app.
+        + apply proj1_sig_eq in iy.
+          unfold majorant in M; apply M in iz.
+          unfold lift_rel in iz.
+          destruct y as (y,Hy), z as (z,Hz); simpl in *.
+          apply C2.
+          apply ord_trans with (proj1_sig ys); try easy.
+          rewrite E, <- iy, add_two_elem,app_assoc.
+          apply prefix_app.
+        + apply proj1_sig_eq in iy.
+          apply proj1_sig_eq in iz.
+          destruct y as (y,Hy), z as (z,Hz); simpl in *.
+          apply C1.
+          rewrite <-iy,<-iz.
+          firstorder.
+    Qed.
 
     Lemma interp_val_sim_1 :
       Simulation (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)) therel.
@@ -254,12 +363,12 @@ Module InterpMemOK(NS:DecidableSet).
         generalize Hys2; intros Hys2'.
         apply trace_ok_pre in Hys2.
         unfold lift_rel in R3.
-        exists (exist  _ (Add _ q (add_next_cand a a' ys' Hys2' p' tpp')) (config_1 a a' ys' Hys2' p' tpp' E R3 Confq)).
+        exists (exist  _ (Add _ q (add_next_cand a a' ys' Hys2' p' tpp')) (config_1 a a' (exist _ ys Hys) ys' Hys2' p' tpp' R1 R3 E Confq)).
         destruct (@prefix_order (mem_op U)).
         unfold majorant,lift_rel in *;
           split.
         + exists (add_next_cand a a' ys' Hys2' p' tpp'); split; try split.
-          * now apply config_1 with ys Hys.
+          * now apply config_1 with (exist _ ys Hys) Hys.
           * split.
             -- intros H.
                apply R3 in H; simpl in H.
@@ -299,6 +408,16 @@ Module InterpMemOK(NS:DecidableSet).
     Lemma interp_val_sim_2 :
       Simulation (lts_of_es (interp_val_es x mu)) (interp_val_lts x mu) (fun x y => therel y x).
     Proof.
+      intros p q rpq p' a (e,(He1,(He2,(He3,He4)))); simpl in *.
+      exists (nat_of_mem_op a);split.
+      - admit.
+      - right.
+        exists e; split; try split.
+        + apply Extension in He1; destruct He1 as (He11,He12).
+          apply He12; intuition.
+        + f_equal.
+          now destruct e as (e,Pe); simpl in *.
+        + admit.
     Admitted.
 
     Lemma interp_val_ok:
@@ -309,7 +428,7 @@ Module InterpMemOK(NS:DecidableSet).
       - apply interp_val_sim_1.
       - apply interp_val_sim_2.
       - left; easy.
-    Admitted.
+    Qed.
 
   End WithEM.
 
