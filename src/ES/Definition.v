@@ -90,3 +90,22 @@ Proof.
   intros p q rpq p' a (false,tpp').
   easy.
 Qed.
+
+Definition minimum A (R:relation A) a := forall b, R b a -> b = a.
+
+Theorem config_singl_minimum Lbl (E:ES Lbl) a : minimum (cmp E) a -> Configuration E (Singleton _ a).
+Proof.
+  intros M.
+  split.
+  - intros x ix y cxy.
+    apply Singleton_inv in ix.
+    destruct ix.
+    unfold minimum in M; apply M in cxy.
+    rewrite cxy; intuition.
+  - intros x y ix iy cxy.
+    apply Singleton_inv in ix.
+    apply Singleton_inv in iy.
+    destruct ix,iy.
+    destruct (cfl_conflict E) as (R1,R2).
+    unfold irreflexive,not in R2; now apply R2 with a.
+Qed.

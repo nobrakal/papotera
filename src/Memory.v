@@ -1,4 +1,8 @@
 Require Import Coq.Arith.PeanoNat.
+Require Import Coq.Lists.List.
+Import ListNotations.
+Require Import Causality.Utils.
+
 Set Implicit Arguments.
 
 Definition mem_state (N:Set) := N -> nat.
@@ -18,9 +22,6 @@ Definition interp_val_lts (N:Set) (x:N) (mu:nat) : LTS (mem_op N) :=
 
 Definition interp_mem_lts (N:Set) (mu:mem_state N) : LTS (mem_op N) :=
   par_arbitrary_lts (fun x => interp_val_lts x (mu x)).
-
-Require Import Coq.Lists.List.
-Import ListNotations.
 
 Definition trace (N:Set) := list (mem_op N).
 
@@ -188,7 +189,7 @@ Proof.
 Qed.
 
 Definition interp_val_es (N:Set) (x:N) (mu:nat) : ES (mem_op N) :=
-  let lbl '(exist _ l H) := proj1_sig (projT2 (@exists_last _ l (proj1 H))) in
+  let lbl '(exist _ l H) := proj1_sig (projT2 (exists_last (proj1 H))) in
   @mkES _ {xs | xs <> nil /\ trace_ok x mu xs} _
         (restrict_order (@prefix_order _) _) _
         (restrict_cfl (@noprefix_cfl _) _)
@@ -350,12 +351,59 @@ Module InterpMemOK(NS:DecidableSet).
           firstorder.
     Qed.
 
+    Program Definition singleton_next p' a (H:next_candidate x mu p' a) :
+      {xs | xs <> [] /\ trace_ok x mu xs} :=
+      exist _ [a] _.
+
+    Next Obligation.
+      destruct a; firstorder.
+      now rewrite <- H1.
+    Defined.
+
+    Lemma config_singleton_next p' a (H:next_candidate x mu p' a) :
+      Configuration (interp_val_es x mu) (Singleton _ (singleton_next p' a H)).
+    Proof.
+      apply config_singl_minimum.
+      intros y T; simpl in *.
+      apply specif_eq.
+      destruct y as (y,Hy); unfold lift_rel in H; simpl in *.
+      destruct y.
+      - now destruct Hy as (H1,H2).
+      - destruct T as (H1,H2).
+        rewrite H1.
+        f_equal; now destruct y.
+    Qed.
+
     Lemma interp_val_sim_1 :
       Simulation (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)) therel.
     Proof.
-      intros p (q,Confq) rpq (* ((ys,Hys),(R1,(R2,R3))) *) p' a tpp'; simpl in *.
-      destruct rpq as [rpq|rpq].
-      - admit.
+      intros p (q,Confq) rpq p' a tpp'; simpl in *.
+      destruct (@prefix_order (mem_op U)).
+      destruct rpq as [(rpq1,rpq2)|rpq].
+      - rewrite rpq1 in tpp'.
+        exists (exist _ (Singleton _ (singleton_next p' a tpp')) (config_singleton_next p' a tpp')).
+        apply proj1_sig_eq in rpq2; simpl in rpq2.
+        split.
+        + exists (singleton_next p' a tpp');
+            rewrite rpq2, Add_empty in *; split; try split; try easy; simpl in *.
+          * apply config_singleton_next.
+          * split; simpl.
+            -- apply Noone_in_empty.
+            -- destruct (exists_last (proj1 (singleton_next_obligation_1 p' a tpp'))) as (x0, (l,Hl)) eqn:eq.
+               destruct a; simpl in *;
+                 rewrite eq; simpl; destruct eq;
+                   now apply singl_app_last in Hl.
+        + right.
+          exists (singleton_next p' a tpp');split; try split; try easy.
+          * destruct (exists_last (proj1 (proj2_sig (singleton_next p' a tpp')))).
+            destruct s as (s1,s2); simpl in *.
+            apply singl_app_last in s2.
+            rewrite <- s2.
+            destruct a; simpl in *; intuition.
+          * intros y iy.
+            apply Singleton_inv,proj1_sig_eq in iy.
+            unfold lift_rel; rewrite iy.
+            apply ord_refl with (x:=proj1_sig y).
       - destruct rpq as ((ys,Hys),(R1,(R2,R3))); simpl in *.
         destruct (exists_last (proj1 Hys)) as (ys',(a',E)); simpl in *.
         generalize Hys; intros (Hys1,Hys2).
@@ -364,7 +412,6 @@ Module InterpMemOK(NS:DecidableSet).
         apply trace_ok_pre in Hys2.
         unfold lift_rel in R3.
         exists (exist  _ (Add _ q (add_next_cand a a' ys' Hys2' p' tpp')) (config_1 a a' (exist _ ys Hys) ys' Hys2' p' tpp' R1 R3 E Confq)).
-        destruct (@prefix_order (mem_op U)).
         unfold majorant,lift_rel in *;
           split.
         + exists (add_next_cand a a' ys' Hys2' p' tpp'); split; try split.
@@ -403,7 +450,7 @@ Module InterpMemOK(NS:DecidableSet).
                   apply prefix_app.
                ++ rewrite <- H; simpl.
                   apply ord_refl.
-    Admitted.
+    Qed.
 
     Lemma interp_val_sim_2 :
       Simulation (lts_of_es (interp_val_es x mu)) (interp_val_lts x mu) (fun x y => therel y x).

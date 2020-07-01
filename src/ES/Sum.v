@@ -12,16 +12,6 @@ Require Import Causality.ES.Parallel.
 
 Set Implicit Arguments.
 
-Lemma Add_empty {A} e : Add _ (Empty_set A) e = Singleton _ e.
-Proof.
-  apply Extensionality_Ensembles.
-  split; intros i ix.
-  - apply Add_inv in ix; destruct ix.
-    now apply Noone_in_empty in H.
-    now rewrite H.
-  - apply Singleton_inv in ix; rewrite ix; intuition.
-Qed.
-
 Module ArbitrarySum(M:DecidableSet).
 
   Module DEqDep := DecidableEqDepSet(M).

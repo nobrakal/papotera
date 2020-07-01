@@ -15,6 +15,16 @@ Proof.
   apply Add_inv in ix; destruct ix; firstorder congruence.
 Qed.
 
+Lemma Add_empty A e : Add _ (Empty_set A) e = Singleton _ e.
+Proof.
+  apply Extensionality_Ensembles.
+  split; intros i ix.
+  - apply Add_inv in ix; destruct ix.
+    now apply Noone_in_empty in H.
+    now rewrite H.
+  - apply Singleton_inv in ix; rewrite ix; intuition.
+Qed.
+
 Lemma add_none_add_eq A X e: Add (option A) (add_none X) (Some e) = add_none (Add A X e).
 Proof.
   apply Extensionality_Ensembles; split; intros x ix; destruct x; intuition.
@@ -108,3 +118,14 @@ Qed.
 Definition cast {T : Type} {T1 T2 : T} (H : T1 = T2) (f : T -> Type) (x : f T1) :=
     match H with
     | eq_refl => x end.
+
+Require Import Coq.Lists.List.
+Import List.ListNotations.
+
+Lemma singl_app_last A (xs:list A) (x y:A) : [x] = xs ++ [y] -> x = y.
+Proof.
+  intros H.
+  destruct xs; simpl in *;injection H.
+  - easy.
+  - now destruct xs.
+Qed.
