@@ -241,10 +241,13 @@ Module InterpMemOK(NS:DecidableSet).
           x = nat_of_mem_op (proj1_sig (projT2 (@exists_last _ (proj1_sig y) (proj1 (proj2_sig y)))))
           /\ majorant (proj1_sig Y) y (@lift_rel _ (@prefix _) _).
 
-    Lemma trace_ok_pre (a:mem_op U) ys : trace_ok x mu (ys ++ [a]) -> trace_ok x mu ys.
+    Lemma trace_ok_pre xs ys : trace_ok x mu (xs++ys) -> trace_ok x mu xs.
     Proof.
-      revert mu; induction ys; try easy.
-      intros H; destruct a0; firstorder.
+      revert mu; induction xs; try easy.
+      intros n H; destruct ys.
+      - now rewrite app_nil_r in H.
+      - rewrite <- app_comm_cons in H.
+        destruct a; firstorder.
     Qed.
 
     Lemma trace_ok_next (a a': mem_op U) ys p' (tpp':next_candidate x (nat_of_mem_op a') p' a) : trace_ok x mu (ys++[a']) -> trace_ok x mu (ys++[a';a]).
@@ -455,16 +458,47 @@ Module InterpMemOK(NS:DecidableSet).
     Lemma interp_val_sim_2 :
       Simulation (lts_of_es (interp_val_es x mu)) (interp_val_lts x mu) (fun x y => therel y x).
     Proof.
-      intros p q rpq p' a (e,(He1,(He2,(He3,He4)))); simpl in *.
-      exists (nat_of_mem_op a);split.
-      - admit.
+      intros p q rpq p' a ((e,(Hl,toke)),(He1,(He2,(He3,He4)))); simpl in *.
+      exists (nat_of_mem_op a); split.
+      - destruct rpq as [(rpq1,rpq2)|rpq].
+        + rewrite rpq1,rpq2 in *; simpl in *.
+          assert (e=[a]) as H.
+          * rewrite Add_empty in He2.
+            destruct He2 as (D,C).
+            destruct e as [|e]; try congruence.
+            destruct e0 as [|e0].
+            -- destruct (exists_last (proj1 (conj Hl toke))) as (z,(l,T)); simpl in *.
+               apply singl_app_last in T.
+               rewrite He4 in T; now rewrite T.
+            -- unfold downclosed in D.
+               pose (y:=exist (fun xs => xs <> [] /\ trace_ok x mu xs) (e :: e0 :: e1) (conj Hl toke)).
+               assert ([e] <> []) as Xl by (intros H; congruence).
+               assert (trace_ok x mu [e]) as Xr by (now apply trace_ok_pre with (ys:=e0::e1)).
+               pose (z:=exist (fun xs => xs <> [] /\ trace_ok x mu xs) [e] (conj Xl Xr)).
+               specialize D with y z.
+               exfalso.
+               assert (y=z) as H by (now apply Singleton_inv,D).
+               easy.
+          * generalize toke;intros toke'.
+            rewrite H in toke'.
+            destruct a; simpl in *; intuition.
+        + destruct rpq as (y,(rpq1,(rpq2,rpq3))).
+          admit.
       - right.
-        exists e; split; try split.
+        exists (exist _ e (conj Hl toke)); split; try split.
         + apply Extension in He1; destruct He1 as (He11,He12).
           apply He12; intuition.
-        + f_equal.
-          now destruct e as (e,Pe); simpl in *.
-        + admit.
+        + now f_equal.
+        + destruct rpq as [(rpq1,rpq2)|rpq].
+          * rewrite rpq2, Add_empty in He1.
+            intros y iy.
+            unfold lift_rel;simpl.
+            apply Extension in He1; destruct He1 as (He11,He12).
+            apply He11, Singleton_inv in iy.
+            rewrite <- iy; simpl.
+            destruct (prefix_order (mem_op U)).
+            unfold reflexive in ord_refl; apply ord_refl.
+          * admit.
     Admitted.
 
     Lemma interp_val_ok:
