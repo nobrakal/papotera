@@ -1,7 +1,9 @@
 Require Import Coq.Arith.PeanoNat.
 Require Import Coq.Lists.List.
 Import ListNotations.
+
 Require Import Causality.Utils.
+Require Import Causality.Prefix.
 
 Set Implicit Arguments.
 
@@ -40,94 +42,6 @@ Fixpoint trace_ok (N:Set) (x:N) (n:nat) (ts:trace N) :=
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Causality.ES.Definition.
 
-Fixpoint prefix A (xs ys:list A) :=
-  match xs,ys with
-  | [],_ => True
-  | x::xs,y::ys => x=y /\ prefix xs ys
-  | _,[] => False end.
-
-Lemma prefix_order A : order _ (@prefix A).
-Proof.
-  split.
-  - intros x; induction x; firstorder.
-  - intros x.
-    induction x; intros y; destruct y; try easy.
-    intros z H1 H2.
-    destruct z; simpl in *; try easy.
-    destruct H1 as (E1,H1), H2 as (E2,H2).
-    split.
-    + now rewrite E1.
-    + now apply IHx with y.
-  - unfold antisymmetric.
-    intros x; induction x; simpl in *.
-    + intros y; destruct y; easy.
-    + intros y Hy; destruct y; try easy; simpl in *.
-      intros H.
-      destruct Hy as (Ey,Hy).
-      f_equal; try easy.
-      now apply IHx.
-Qed.
-
-Lemma prefix_app A (xs ys : list A) : prefix xs (xs++ys).
-Proof. induction xs; firstorder. Qed.
-
-Lemma prefix_napp A (xs ys : list A) : ys <> [] -> ~ (prefix (xs++ys) xs).
-Proof.
-  intros H.
-  apply exists_last in H; destruct H as (H1,(zs,H2)).
-  rewrite H2.
-  intros Z.
-  induction xs; simpl in *.
-  - destruct (H1 ++ [zs]) eqn:eq; try easy.
-    now destruct H1.
-  - firstorder.
-Qed.
-
-Lemma prefix_ex A (xs ys:list A) : prefix xs ys -> exists zs, ys= xs ++ zs.
-Proof.
-  revert ys.
-  induction xs; intros ys H.
-  - exists ys; intuition.
-  - destruct ys; simpl in H; try easy.
-    destruct H as (E,H).
-    apply IHxs in H.
-    destruct H as (zs,H).
-    exists zs.
-    now rewrite E, <- app_comm_cons; f_equal.
-Qed.
-
-Lemma neq_extend A (xs ys:list A) a : a::xs <> a::ys -> xs <> ys.
-Proof.
-  intros H P.
-  apply H.
-  now rewrite P.
-Qed.
-
-Lemma prefix_extend A (xs ys:list A) a : xs<>ys++[a] -> prefix xs (ys ++ [a]) -> prefix xs ys.
-Proof.
-  revert ys; induction xs.
-  - easy.
-  - intros ys H P.
-    destruct (ys++[a]) eqn:eq; try easy.
-    simpl in P; destruct P as (E,P),E.
-    apply neq_extend in H.
-    destruct ys.
-    + simpl in eq.
-      assert (l=[]) as E.
-      * apply (@f_equal _ _ (@length _) [a] (a0::l)) in eq.
-        injection eq; intros E.
-        symmetry in E.
-        now apply length_zero_iff_nil in E.
-      * rewrite E in *.
-        now destruct xs.
-    + rewrite <- app_comm_cons in eq.
-      injection eq; intros H1 H2.
-      destruct H2.
-      rewrite <- H1 in *.
-      simpl; split; try easy.
-      now apply IHxs.
-Qed.
-
 Definition lift_rel A (R:relation A) (P:A -> Prop) : relation (sig P) :=
   fun x y => R (proj1_sig x) (proj1_sig y).
 
@@ -140,14 +54,6 @@ Proof.
   - intros (x,Px) (y,Py) R1 R2; apply specif_eq; now apply O3.
 Qed.
 
-Definition noprefix A (xs ys:list A) := not (prefix xs ys) /\ not (prefix ys xs).
-
-Lemma noprefix_cons A (x y:A) (xs ys:list A) : x=y -> noprefix (x::xs) (y::ys) <-> noprefix xs ys.
-Proof. firstorder. Qed.
-
-Lemma noprefix_cons' A (x y:A) (xs ys:list A) : x<>y -> noprefix xs ys -> noprefix (x::xs) (y::ys).
-Proof. intros n; split; intros (H1,H2); congruence. Qed.
-
 Lemma noprefix_cfl A : conflict (list A) (@noprefix A).
 Proof.
   split.
@@ -158,18 +64,6 @@ Qed.
 
 Lemma restrict_cfl A (R:relation A) (ord : conflict _ R) (P:A -> Prop) : conflict _ (@lift_rel _ R P).
 Proof. firstorder. Qed.
-
-Lemma prefix_propagate A (x y z:list A) : prefix x z -> prefix y z -> prefix x y \/ prefix y x.
-Proof.
-  revert y z.
-  induction x.
-  - intuition.
-  - intros y z XZ YZ.
-    destruct z,y; intuition.
-    destruct XZ as (E1,XZ), YZ as (E2,YZ).
-    assert (prefix x y \/ prefix y x) as H by (now apply IHx with z).
-    destruct H; [left | right]; rewrite E1, <- E2; now split.
-Qed.
 
 Lemma prefix_noprefix_inherit A: conflict_inherit (@prefix A) (@noprefix A).
 Proof.
@@ -217,8 +111,11 @@ Proof.
   now apply IHxs.
 Qed.
 
+Require Import Coq.Structures.Equalities.
+
 Definition majorant A (E:Ensemble A) (x:A) (R:relation A) := forall y, In _ E y -> R y x.
 
+(* TODO better name NS NSS *)
 Module InterpMemOK(NS:DecidableSet).
   Import NS.
 
@@ -228,6 +125,13 @@ Module InterpMemOK(NS:DecidableSet).
     Par.par_arbitrary_es (fun i => interp_val_es i (mu i)).
 
   Module ALTS := ArbitraryLTS(NS).
+
+  Module MemOpsU.
+    Definition t := mem_op U.
+    Definition eq_dec := mem_op_eq_dec NS.eq_dec.
+  End MemOpsU.
+
+  Module PrefixDec := Dec(MemOpsU).
 
   Section WithEM.
 
@@ -455,10 +359,48 @@ Module InterpMemOK(NS:DecidableSet).
                   apply ord_refl.
     Qed.
 
+    (* TODO better name *)
+    Definition trace_pred := fun xs => xs <> [] /\ trace_ok x mu xs.
+
+    Lemma prefix_of_last_added X y e:
+      In _ X y
+      -> majorant X y (cmp (interp_val_es x mu))
+      -> ~ In _ X e
+      -> Configuration
+           (interp_val_es x mu)
+           (Add _ X e)
+      -> Configuration (interp_val_es x mu) X
+      -> cmp (interp_val_es x mu) y e.
+    Proof.
+      intros iy majo_y not_x_e (D,C) (D1,C1).
+      unfold majorant,downclosed,conflict_free,lift_rel in *.
+      specialize C with y e.
+      assert (~ cfl (interp_val_es x mu) y e) as H by (apply C; intuition).
+      apply PrefixDec.not_noprefix_prefix in H.
+      destruct H; try easy.
+      exfalso.
+      specialize D1 with y e.
+      now apply D1 in iy.
+    Qed.
+
+    Lemma trace_ok_next_cand y le ly :
+      trace_ok x mu (y ++ [ly; le])
+      -> next_candidate x (nat_of_mem_op ly) (nat_of_mem_op le) le.
+    Proof.
+      revert mu.
+      induction y;intros mu H.
+      - destruct le,ly; firstorder.
+        simpl; now rewrite H2, <- H0.
+      - rewrite <- app_comm_cons in H.
+        destruct a; [destruct H as (H1,(H2,H)) | destruct H as (H1,H)];
+          now apply IHy in H.
+    Qed.
+
     Lemma interp_val_sim_2 :
       Simulation (lts_of_es (interp_val_es x mu)) (interp_val_lts x mu) (fun x y => therel y x).
     Proof.
       intros p q rpq p' a ((e,(Hl,toke)),(He1,(He2,(He3,He4)))); simpl in *.
+      destruct (prefix_order (mem_op U)).
       exists (nat_of_mem_op a); split.
       - destruct rpq as [(rpq1,rpq2)|rpq].
         + rewrite rpq1,rpq2 in *; simpl in *.
@@ -471,10 +413,10 @@ Module InterpMemOK(NS:DecidableSet).
                apply singl_app_last in T.
                rewrite He4 in T; now rewrite T.
             -- unfold downclosed in D.
-               pose (y:=exist (fun xs => xs <> [] /\ trace_ok x mu xs) (e :: e0 :: e1) (conj Hl toke)).
+               pose (y:=exist trace_pred (e :: e0 :: e1) (conj Hl toke)).
                assert ([e] <> []) as Xl by (intros H; congruence).
                assert (trace_ok x mu [e]) as Xr by (now apply trace_ok_pre with (ys:=e0::e1)).
-               pose (z:=exist (fun xs => xs <> [] /\ trace_ok x mu xs) [e] (conj Xl Xr)).
+               pose (z:=exist trace_pred [e] (conj Xl Xr)).
                specialize D with y z.
                exfalso.
                assert (y=z) as H by (now apply Singleton_inv,D).
@@ -482,8 +424,60 @@ Module InterpMemOK(NS:DecidableSet).
           * generalize toke;intros toke'.
             rewrite H in toke'.
             destruct a; simpl in *; intuition.
-        + destruct rpq as (y,(rpq1,(rpq2,rpq3))).
-          admit.
+        + destruct rpq as ((y,Hy),(rpq1,(rpq2,rpq3))).
+          destruct (exists_last (proj1 (conj Hl toke))) as (e',(le,Hle)); simpl in *.
+          destruct (exists_last (proj1 Hy)) as (y',(ly,Hly)); simpl in *.
+          destruct He4.
+          rewrite rpq2.
+          unfold majorant in rpq3.
+          assert (cmp (interp_val_es x mu) (exist _ y Hy) (exist _ e (conj Hl toke)))
+            by (apply prefix_of_last_added with (X:=proj1_sig p); destruct p as (p,Hp); easy).
+          unfold cmp,interp_val_es,lift_rel in H; simpl in H.
+          rewrite Hle in H.
+          assert (prefix e' y) as T.
+          * assert (e' <> []) as L.
+            -- intros L.
+               rewrite L in H; simpl in H.
+               destruct Hy as (Hy1,Hy2).
+               destruct y; try easy.
+               destruct y; destruct H as (H1,H2),H1; try easy.
+               rewrite L in Hle; simpl in Hle.
+               assert ((exist (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs) [m] (conj Hy1 Hy2))
+                       = (exist (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs) e (conj Hl toke))) as H by (now apply specif_eq).
+               now rewrite H in rpq1.
+            -- generalize toke; intro tok.
+               rewrite Hle in tok.
+               apply trace_ok_pre in tok.
+               specialize rpq3 with (exist trace_pred e' (conj L tok)).
+               apply rpq3.
+               destruct He2 as (D,C); unfold downclosed in D.
+               specialize D with (exist trace_pred e (conj Hl toke)) (exist trace_pred e' (conj L tok)).
+               assert ((Add _ (proj1_sig p)
+                            (exist trace_pred e (conj Hl toke))) (exist trace_pred e' (conj L tok))) as R.
+               ++ apply D.
+                  ** intuition.
+                  ** simpl; unfold lift_rel; simpl.
+                     rewrite Hle.
+                     apply prefix_app.
+               ++ apply Add_inv in R.
+                  destruct R;try easy.
+                  apply proj1_sig_eq in H0;simpl in H0.
+                  rewrite H0 in Hle.
+                  rewrite <- app_nil_r in Hle at 1.
+                  apply app_inj_l in Hle; congruence.
+          * assert (y <> e) as goody.
+            -- intros E.
+               assert ((exist (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs) y Hy)
+                       =  (exist (fun xs : list (mem_op U) => xs <> [] /\ trace_ok x mu xs) e (conj Hl toke)))
+                 as E' by (now apply specif_eq).
+               now rewrite E' in rpq1.
+            -- rewrite Hle in goody.
+               apply prefix_extend in H; try easy.
+               unfold antisymmetric in ord_antisym.
+               apply ord_antisym in H; try easy.
+               generalize toke; intros tok.
+               rewrite Hle,H,Hly,<-app_assoc in tok.
+               now apply trace_ok_next_cand with y'.
       - right.
         exists (exist _ e (conj Hl toke)); split; try split.
         + apply Extension in He1; destruct He1 as (He11,He12).
@@ -498,8 +492,22 @@ Module InterpMemOK(NS:DecidableSet).
             rewrite <- iy; simpl.
             destruct (prefix_order (mem_op U)).
             unfold reflexive in ord_refl; apply ord_refl.
-          * admit.
-    Admitted.
+          * destruct rpq as ((y,Hy),(Hy1,(Hy2,Hy3))); simpl in *.
+            intros (z,Hz) iz.
+            rewrite He1 in iz.
+            apply Add_inv in iz.
+            destruct iz as [H|H].
+            -- assert (cmp (interp_val_es x mu) (exist _ y Hy) (exist _ e (conj Hl toke)))
+                by (apply prefix_of_last_added with (X:=proj1_sig p); destruct p as (p,Hp); easy).
+               unfold transitive in ord_trans.
+               apply ord_trans with y.
+               ++ unfold majorant in Hy3; now apply Hy3 in H.
+               ++ easy.
+            -- apply proj1_sig_eq in H; simpl in H.
+               unfold lift_rel; simpl.
+               rewrite H.
+               apply ord_refl with (x:=z).
+    Qed.
 
     Lemma interp_val_ok:
       Bisimilar (interp_val_lts x mu) (lts_of_es (interp_val_es x mu)).

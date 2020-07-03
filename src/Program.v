@@ -1,10 +1,26 @@
 Require Import Coq.Lists.List.
+Require Import Coq.Arith.PeanoNat.
 
 Set Implicit Arguments.
 
 Inductive mem_op (N:Set) : Set :=
 | Read : N -> nat -> mem_op N
 | Write : N -> nat -> mem_op N.
+
+Lemma mem_op_eq_dec (N:Set) (eq_dec:forall (x y : N), {x = y}+{x <> y}) :
+  forall x y : mem_op N, {x = y} + {x <> y}.
+Proof.
+  intros x y.
+  destruct x,y.
+  - destruct (eq_dec n n1),(Nat.eq_dec n0 n2).
+    1:left; now rewrite e, e0.
+    all:right; intros H; injection H; intuition.
+  - right; intros H; congruence.
+  - right; intros H; congruence.
+  - destruct (eq_dec n n1),(Nat.eq_dec n0 n2).
+    1:left; now rewrite e, e0.
+    all:right; intros H; injection H; intuition.
+Qed.
 
 Inductive instruction N :=
 | Assign : N -> nat -> instruction N
