@@ -115,7 +115,7 @@ Proof. intros n; split; intros (H1,H2); congruence. Qed.
 
 Require Import Coq.Structures.Equalities.
 
-Module Dec(X:MiniDecidableType).
+Module PrefixDec(X:MiniDecidableType).
   Module XX := Make_UDT(X).
 
   Import X XX.
@@ -143,4 +143,4 @@ Module Dec(X:MiniDecidableType).
       + right; easy.
       + exfalso; apply H; now split.
   Qed.
-End Dec.
+End PrefixDec.

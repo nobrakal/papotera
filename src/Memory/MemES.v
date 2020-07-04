@@ -88,16 +88,12 @@ Definition interp_val_es (N:Set) (x:N) (mu:nat) : ES (mem_op N) :=
 Require Import Coq.Logic.Eqdep_dec.
 Require Import Causality.ES.Parallel.
 
-Module InterpMemES(NS:DecidableSet).
-
-End InterpMemES.
-
 Require Import Coq.Sets.Constructive_sets.
 
 Lemma add_two_elem A xs (a b:A) : xs ++ [a;b] = xs ++ [a] ++ [b].
 Proof. firstorder. Qed.
 
-Lemma app_inj_l A (xs ys zs : list A) : xs ++ ys = xs ++zs -> ys =zs.
+Lemma app_inj_l A (xs ys zs : list A) : xs ++ ys = xs ++ zs -> ys = zs.
 Proof.
   revert ys zs.
   induction xs;try easy.
@@ -126,7 +122,7 @@ Module InterpMemOK(NameSet:DecidableSet).
     Definition eq_dec := mem_op_eq_dec NameSet.eq_dec.
   End MemOpU.
 
-  Module PrefixDec := Dec(MemOpU).
+  Module PrefixDec := PrefixDec(MemOpU).
 
   Section WithEM.
 
@@ -187,14 +183,12 @@ Module InterpMemOK(NameSet:DecidableSet).
           unfold majorant in M.
           apply M in iy.
           now apply Add_intro1, D.
-        + unfold cmp,interp_val_es,lift_rel in iz.
-          generalize iz; intros iz'.
-          apply prefix_ex in iz.
-          destruct iz as (zs,iz).
+        + generalize iz; intros iz'.
+          apply prefix_ex in iz; destruct iz as (zs,iz).
           destruct zs.
           * rewrite app_nil_r in iz.
             assert (y=z) as R by (now apply specif_eq).
-            rewrite <- R, <- iy;intuition.
+            rewrite <- R, <- iy; intuition.
           * specialize D with ys z.
             left.
             apply D; try easy.
@@ -202,7 +196,7 @@ Module InterpMemOK(NameSet:DecidableSet).
             destruct z as (z,Hz), y as (y,Hy), ys as (ys,HH); simpl in *.
             unfold add_next_cand in iy; apply proj1_sig_eq in iy; simpl in iy.
             rewrite E.
-            rewrite <- iy in iz'.
+            unfold cmp,interp_val_es,lift_rel in iz'; rewrite <- iy in iz'.
             apply prefix_extend with a; rewrite <- app_assoc,<- add_two_elem; try easy.
             intros P.
             rewrite P, iy in iz.
@@ -217,8 +211,7 @@ Module InterpMemOK(NameSet:DecidableSet).
         destruct cyz as (C1,C2).
         destruct (@prefix_order (mem_op U)).
         unfold transitive in ord_trans.
-        unfold majorant in M.
-        unfold lift_rel in *.
+        unfold majorant, lift_rel in *.
         destruct iy as [iy|iy],iz as [iz|iz].
         1:unfold conflict_free,not in C;
           now apply C with y z.
