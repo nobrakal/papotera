@@ -2,6 +2,7 @@ Require Import Coq.Lists.List.
 Import ListNotations.
 
 Require Import Coq.Relations.Relation_Definitions.
+Require Import Coq.Classes.RelationClasses.
 
 Set Implicit Arguments.
 
@@ -11,18 +12,28 @@ Fixpoint prefix A (xs ys:list A) :=
   | x::xs,y::ys => x=y /\ prefix xs ys
   | _,[] => False end.
 
+Instance prefix_refl {A} : Reflexive (@prefix A).
+Proof.
+  intros x; induction x; firstorder.
+Qed.
+
+Instance prefix_trans {A} : Transitive (@prefix A).
+Proof.
+  intros x.
+  induction x; intros y; destruct y; try easy.
+  intros z H1 H2.
+  destruct z; simpl in *; try easy.
+  destruct H1 as (E1,H1), H2 as (E2,H2).
+  split.
+  - now rewrite E1.
+  - now apply IHx with y.
+Qed.
+
 Lemma prefix_order A : order _ (@prefix A).
 Proof.
   split.
-  - intros x; induction x; firstorder.
-  - intros x.
-    induction x; intros y; destruct y; try easy.
-    intros z H1 H2.
-    destruct z; simpl in *; try easy.
-    destruct H1 as (E1,H1), H2 as (E2,H2).
-    split.
-    + now rewrite E1.
-    + now apply IHx with y.
+  - apply prefix_refl.
+  - apply prefix_trans.
   - unfold antisymmetric.
     intros x; induction x; simpl in *.
     + intros y; destruct y; easy.

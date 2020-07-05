@@ -8,4 +8,5 @@ src/ES/Prefixing.v
 src/Program.v
 src/Memory/MemLTS.v
 src/Memory/Prefix.v
+src/Memory/Restrict.v
 src/Memory/MemES.v

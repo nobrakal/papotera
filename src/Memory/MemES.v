@@ -7,6 +7,7 @@ Require Import Causality.LTS.
 Require Import Causality.Program.
 Require Import Causality.Memory.MemLTS.
 Require Import Causality.Memory.Prefix.
+Require Import Causality.Memory.Restrict.
 
 Set Implicit Arguments.
 
@@ -36,18 +37,6 @@ Qed.
 Require Import Coq.Relations.Relation_Definitions.
 Require Import Causality.ES.Definition.
 
-Definition lift_rel A (R:relation A) (P:A -> Prop) : relation (sig P) :=
-  fun x y => R (proj1_sig x) (proj1_sig y).
-
-Lemma restrict_order A (R:relation A) (ord : order _ R) (P:A -> Prop) : order _ (@lift_rel _ R P).
-Proof.
-  destruct ord as (O1,O2,O3).
-  split.
-  - firstorder.
-  - intros (x,Px) (y,Py) (z,Pz); apply O2.
-  - intros (x,Px) (y,Py) R1 R2; apply specif_eq; now apply O3.
-Qed.
-
 Lemma noprefix_cfl A : conflict (list A) (@noprefix A).
 Proof.
   split.
@@ -56,9 +45,6 @@ Proof.
     destruct C2; induction x; firstorder.
 Qed.
 
-Lemma restrict_cfl A (R:relation A) (ord : conflict _ R) (P:A -> Prop) : conflict _ (@lift_rel _ R P).
-Proof. firstorder. Qed.
-
 Lemma prefix_noprefix_inherit A: conflict_inherit (@prefix A) (@noprefix A).
 Proof.
   intros x y z (N1,N2) P1.
@@ -66,14 +52,7 @@ Proof.
   - assert (prefix x y \/ prefix y x) as H by (now apply prefix_propagate with z).
     now destruct H.
   - destruct (prefix_order A) as (R,T,An).
-    unfold transitive in T.
-    now apply N2, T with z.
-Qed.
-
-Lemma restrict_inherit  A (R1 R2:relation A) (inherit : conflict_inherit R1 R2) (P:A -> Prop) :
-  conflict_inherit (@lift_rel _ R1 P) (@lift_rel _ R2 P).
-Proof.
-  intros (x,Px) (y,Py) (z,Pz) H1 H2; firstorder.
+    apply N2; now transitivity z.
 Qed.
 
 Definition trace_pred (N:Set) (x:N) mu := fun xs => xs <> [] /\ trace_ok x mu xs.
@@ -81,9 +60,9 @@ Definition trace_pred (N:Set) (x:N) mu := fun xs => xs <> [] /\ trace_ok x mu xs
 Definition interp_val_es (N:Set) (x:N) (mu:nat) : ES (mem_op N) :=
   let lbl '(exist _ l H) := proj1_sig (projT2 (exists_last (proj1 H))) in
   @mkES _ {xs | trace_pred x mu xs} _
-        (restrict_order (@prefix_order _) _) _
-        (restrict_cfl (@noprefix_cfl _) _)
-        (@restrict_inherit _ _ _ (@prefix_noprefix_inherit _) _) lbl.
+        (lift_order (@prefix_order _) _) _
+        (lift_cfl (@noprefix_cfl _) _)
+        (@lift_inherit _ _ _ (@prefix_noprefix_inherit _) _) lbl.
 
 Require Import Coq.Logic.Eqdep_dec.
 Require Import Causality.ES.Parallel.
@@ -209,8 +188,6 @@ Module InterpMemOK(NameSet:DecidableSet).
         apply Add_inv in iz.
         unfold cfl, interp_val_es,lift_rel in cyz.
         destruct cyz as (C1,C2).
-        destruct (@prefix_order (mem_op U)).
-        unfold transitive in ord_trans.
         unfold majorant, lift_rel in *.
         destruct iy as [iy|iy],iz as [iz|iz].
         1:unfold conflict_free,not in C;
@@ -219,14 +196,14 @@ Module InterpMemOK(NameSet:DecidableSet).
         2,3:apply proj1_sig_eq in iy.
         all:destruct y as (y,Hy), z as (z,Hz); simpl in *.
         + apply M in iy.
-          apply C1, ord_trans with (proj1_sig ys); try easy.
+          apply C1; transitivity (proj1_sig ys); try easy.
           rewrite E, <- iz, add_two_elem,app_assoc.
           apply prefix_app.
         + apply C1.
           rewrite <-iy,<-iz.
           firstorder.
         + apply M in iz.
-          apply C2, ord_trans with (proj1_sig ys); try easy.
+          apply C2; transitivity (proj1_sig ys); try easy.
           rewrite E, <- iy, add_two_elem,app_assoc.
           apply prefix_app.
     Qed.
@@ -331,8 +308,7 @@ Module InterpMemOK(NameSet:DecidableSet).
                   simpl.
                   rewrite add_two_elem,app_assoc.
                   apply prefix_app.
-               ++ rewrite <- H; simpl.
-                  apply ord_refl.
+               ++ now rewrite <- H.
     Qed.
 
     Lemma prefix_of_last_added X y e:
@@ -465,8 +441,7 @@ Module InterpMemOK(NameSet:DecidableSet).
             apply Extension in He1; destruct He1 as (He11,He12).
             apply He11, Singleton_inv in iy.
             rewrite <- iy; simpl.
-            destruct (prefix_order (mem_op U)).
-            unfold reflexive in ord_refl; apply ord_refl.
+            now destruct (prefix_order (mem_op U)).
           * destruct rpq as ((y,Hy),(Hy1,(Hy2,Hy3))); simpl in *.
             intros (z,Hz) iz.
             rewrite He1 in iz.
@@ -480,8 +455,7 @@ Module InterpMemOK(NameSet:DecidableSet).
                ++ easy.
             -- apply proj1_sig_eq in H; simpl in H.
                unfold lift_rel; simpl.
-               rewrite H.
-               apply ord_refl with (x:=z).
+               now rewrite H.
     Qed.
 
     Lemma interp_val_ok:
