@@ -10,3 +10,4 @@ src/Memory/MemLTS.v
 src/Memory/Prefix.v
 src/Memory/Restrict.v
 src/Memory/MemES.v
+src/SynchroES.v
